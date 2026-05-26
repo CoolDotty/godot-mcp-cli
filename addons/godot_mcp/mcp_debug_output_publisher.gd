@@ -26,7 +26,7 @@ const STACK_FRAMES_KEYWORDS := [
 ]
 const SUMMARY_VALUE_MAX_LEN := 160
 
-var websocket_server: MCPWebSocketServer
+var mcp_sse: MCPSse
 
 var _subscribers: Dictionary = {}
 var _elapsed := 0.0
@@ -119,9 +119,14 @@ func _publish_incremental_frame() -> void:
 		_send_event_to_client(int(client_id), payload)
 
 func _send_event_to_client(client_id: int, payload: Dictionary) -> void:
-	if websocket_server == null:
+	if mcp_sse == null:
 		return
-	websocket_server.send_event(client_id, payload)
+	# Wrap as MCP notification for SSE transport
+	var notification = MCPTypes.make_notification(
+		"notifications/debug/" + payload.get("event", "output"),
+		payload.get("data", payload)
+	)
+	mcp_sse.send_mcp_message(client_id, notification)
 
 func _fetch_log_text() -> String:
 	var control := _get_output_control()
@@ -599,7 +604,7 @@ func clear_log_output() -> Dictionary:
 	}
 
 func _broadcast_log_reset() -> void:
-	if _subscribers.is_empty() or websocket_server == null:
+	if _subscribers.is_empty() or mcp_sse == null:
 		return
 
 	var payload := {

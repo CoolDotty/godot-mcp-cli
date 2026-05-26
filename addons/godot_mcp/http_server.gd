@@ -48,9 +48,6 @@ var _access_control_allowed_methods = "POST, GET, OPTIONS"
 # Comma separed headers for the access control
 var _access_control_allowed_headers = "content-type"
 
-# Cause reasons?
-var _threads: Array[Thread] = []
-
 # Compile the required regex
 func _init(_logging: bool = false):
 	self._logging = _logging
@@ -78,7 +75,7 @@ func _print_debug(message: String) -> void:
 func register_router(router: HttpRouter) -> void:
 	var path_regex = RegEx.new()
 	var params: Array[String] = []
-	if router.path.left(0) == "^":
+	if router.path.left(1) == "^":
 		path_regex.compile(router.path)
 	else:
 		var regexp: Array = _path_to_regexp(router.path, router is HttpFileRouter)
@@ -106,20 +103,17 @@ func _process(_delta: float) -> void:
 		if client.get_status() == StreamPeerTCP.STATUS_CONNECTED:
 			var bytes = client.get_available_bytes()
 			if bytes > 0:
-				var request_string = client.get_utf8_string(bytes)
-				self._handle_request(client, request_string)
+					var request_string = client.get_utf8_string(bytes)
+					self._handle_request(client, request_string)
 	_remove_disconnected_clients()
 
 
 func _remove_disconnected_clients():
 	var valid_statuses = [StreamPeerTCP.STATUS_CONNECTED, StreamPeerTCP.STATUS_CONNECTING]
+
 	self._clients = self._clients.filter(
 		func(c: StreamPeerTCP): return valid_statuses.has(c.get_status())
 	)
-	for t in range(_threads.size() - 1, -1, -1):
-		if !_threads[t].is_alive() and _threads[t].is_started():
-			_threads[t].wait_to_finish()
-			_threads.remove_at(t)
 
 
 ## Start the server
@@ -172,6 +166,7 @@ func _handle_request(client: StreamPeer, request_string: String):
 			header_matches.get_string("value")
 		else:
 			request.body += line
+
 	self._perform_current_request(client, request)
 
 
@@ -186,9 +181,9 @@ func _handle_request(client: StreamPeer, request_string: String):
 #   - headers: A dictionary of headers of the request
 #   - body: The raw body of the request
 func _perform_current_request(client: StreamPeer, request: HttpRequest):
-	var thread = Thread.new()
-	_threads.push_back(thread)
-	thread.start(__perform_current_request.bind(client, request))
+	# Run synchronously on the main thread — Godot scene tree APIs
+	# (get_node, get_children, etc.) are NOT thread-safe.
+	__perform_current_request(client, request)
 
 func __perform_current_request(client: StreamPeer, request: HttpRequest):
 	_print_debug("HTTP Request: " + str(request))
@@ -256,9 +251,6 @@ func __perform_current_request(client: StreamPeer, request: HttpRequest):
 			#break
 	if not found:
 		response.send(404, "Not found")
-
-func uhh():
-	pass
 
 # Converts a URL path to @regexp RegExp, providing a mechanism to fetch groups from the expression
 # indexing each parameter by name in the @params array

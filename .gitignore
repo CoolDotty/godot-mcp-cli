@@ -19,12 +19,8 @@ materials/
 data_*/
 mono_crash.*.json
 
-# Node.js and npm
-node_modules/
-npm-debug.log
-dist/
-server/addons/
-server/README.md
+# Node.js and npm (server/ deleted — no longer needed)
+server/
 
 # System files
 .DS_Store

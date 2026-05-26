@@ -2,121 +2,184 @@
 
 ## Overview
 
-The Godot MCP enables AI assistants to interact with Godot Engine via WebSocket. It supports both MCP protocol and CLI access.
+The Godot MCP addon exposes Godot Engine's editor and runtime features to AI assistants via the **Model Context Protocol (MCP)**. It uses **HTTP + Server-Sent Events (SSE)** as the transport layer — no Node.js or external processes required.
 
 ```
-AI Assistant / CLI
+AI Assistant (MCP Client)
        |
+       | SSE endpoint: GET /mcp (Accept: text/event-stream)
+       | JSON-RPC:     POST /mcp
        v
-TypeScript Server (MCP + CLI)
-       |
-       v (WebSocket :9080)
-Godot Addon (Editor Plugin)
-       |
-       v
-Godot Engine APIs
+Godot Editor (port 9080)
+  ┌────────────────────────────────────────┐
+  │  HttpServer (TCP/HTTP)                  │
+  │    └── MCPRouter (extends HttpRouter)  │
+  │          ├── GET /mcp (SSE) → MCPSse    │
+  │          └── POST /mcp    → MCPServerCore │
+  │                               │        │
+  │  MCPServerCore (JSON-RPC 2.0) │        │
+  │    ├── Tool Registry          │        │
+  │    ├── Resource Registry     │        │
+  │    └── ResponseBroker ───────┤        │
+  │                              ▼        │
+  │  CommandHandler                      │
+  │    ├── NodeCommands                   │
+  │    ├── ScriptCommands                 │
+  │    ├── SceneCommands                  │
+  │    ├── ProjectCommands                │
+  │    ├── EditorCommands                 │
+  │    ├── DebuggerCommands               │
+  │    ├── InputCommands                  │
+  │    └── (Enhanced/Asset/ScriptRes)     │
+  │                              │        │
+  │                              ▼        │
+  │  Godot Engine APIs                    │
+  │    ├── EditorInterface                │
+  │    ├── EditorDebuggerPlugin           │
+  │    ├── EngineDebugger / Runtime       │
+  │    └── ProjectSettings / FileAccess   │
+  └────────────────────────────────────────┘
 ```
 
 ## Components
 
-### TypeScript Server (`server/src/`)
+### HTTP Server Layer
 
 | File | Purpose |
 |------|---------|
-| `index.ts` | MCP server entry point |
-| `cli.ts` | Command-line interface |
-| `utils/godot_connection.ts` | WebSocket client to Godot |
-| `tools/*.ts` | MCP tool definitions |
-| `resources/*.ts` | MCP resource definitions |
+| `http_server.gd` | TCP/HTTP server, request parsing, router dispatch |
+| `http_router.gd` | Base router class with method callables |
+| `http_request.gd` | Parsed HTTP request with body/headers/query |
+| `http_response.gd` | HTTP response builder (send, json, send_raw) |
+| `http_file_router.gd` | Static file serving router |
 
-**Tool Categories:**
-- `node_tools.ts` - Node creation, deletion, properties
-- `scene_tools.ts` - Scene management
-- `script_tools.ts` - Script editing
-- `debugger_tools.ts` - Breakpoints, execution control
-- `input_tools.ts` - Input simulation
-- `editor_tools.ts` - Editor automation
-- `project_tools.ts` - Project operations
-- `asset_tools.ts` - Asset management
-- `enhanced_tools.ts` - Runtime inspection
+Originally sourced from [bit-garden/godottpd](https://github.com/bit-garden/godottpd) and integrated directly into the addon.
 
-### Godot Addon (`addons/godot_mcp/`)
+### MCP Protocol (`addons/godot_mcp/`)
 
 | File | Purpose |
 |------|---------|
-| `mcp_server.gd` | Main plugin, manages lifecycle |
-| `websocket_server.gd` | WebSocket server on port 9080 |
+| `mcp_server.gd` | Main EditorPlugin, manages lifecycle |
+| `mcp_server_core.gd` | JSON-RPC 2.0 engine, tool registry, protocol handlers |
+| `mcp_router.gd` | Extends HttpRouter — routes `/mcp` (SSE + JSON-RPC) |
+| `mcp_sse.gd` | SSE streaming manager, keepalive, client tracking |
+| `mcp_types.gd` | Shared constants, error codes, helper factories |
 | `command_handler.gd` | Routes commands to processors |
 | `commands/*.gd` | Command processors by category |
-| `mcp_debugger_bridge.gd` | EditorDebuggerPlugin for debugging |
+| `mcp_debugger_bridge.gd` | EditorDebuggerPlugin for breakpoints |
 | `mcp_runtime_debugger_bridge.gd` | Runtime scene inspection |
 | `mcp_input_handler.gd` | Input simulation autoload |
 | `runtime_debugger.gd` | Script injected into debugged projects |
+| `mcp_debug_output_publisher.gd` | Live debug output streaming |
 | `ui/mcp_panel.*` | Dock panel UI |
 
-**Command Processors:**
-- `node_commands.gd` - Node operations
-- `scene_commands.gd` - Scene operations
-- `script_commands.gd` - Script operations
-- `debugger_commands.gd` - Debugger operations
-- `input_commands.gd` - Input simulation
-- `editor_commands.gd` - Editor state
-- `project_commands.gd` - Project info
+### Command Processors
 
-## Communication
+| Processor | Tools Provided |
+|-----------|---------------|
+| `node_commands.gd` | create_node, delete_node, update_node_property, etc. |
+| `scene_commands.gd` | save_scene, load_scene, get_scene_tree, etc. |
+| `script_commands.gd` | run_script, get_script, set_script, etc. |
+| `debugger_commands.gd` | Breakpoints, execution control, events |
+| `input_commands.gd` | Action simulation, mouse/keyboard, sequences |
+| `editor_commands.gd` | Editor state, script execution |
+| `project_commands.gd` | Project info, settings |
+| `mcp_enhanced_commands.gd` | Scene structure, runtime inspection, debug output |
+| `mcp_asset_commands.gd` | Asset listing |
+| `mcp_script_resource_commands.gd` | Script resource operations |
 
-### Message Format
+## Transport: HTTP + SSE
 
-**Command (Server to Godot):**
+The MCP protocol is transported over HTTP with Server-Sent Events:
+
+### SSE Connection (`GET /mcp` with `Accept: text/event-stream`)
+
+1. Client opens a persistent HTTP connection to `GET /mcp` with `Accept: text/event-stream`
+2. Server responds with `Content-Type: text/event-stream`
+3. Server sends `event: endpoint` with `data: {"uri": "/mcp"}` 
+4. Server sends keepalive comments every 30 seconds
+5. All subsequent MCP notifications (debug events, etc.) are pushed over this stream
+
+### JSON-RPC (`POST /mcp`)
+
+1. Client sends a standard HTTP POST with JSON-RPC 2.0 body
+2. Server processes the request and responds immediately
+3. Request/response follows the MCP specification
+
+## Protocol Flow
+
+### Initialization
+```
+Client                           Server
+  │                                │
+  ├─POST /mcp (initialize)───────►│
+  │◄───200 (capabilities, info)───┤
+  │                                │
+  ├─POST /mcp (initialized)──────►│
+  │◄───202 Accepted (notification)┤
+```
+
+### Tool Calling
+```
+Client                           Server
+  │                                │
+  ├─POST /mcp (tools/list)───────►│
+  │◄───200 (tool definitions)─────┤
+  │                                │
+  ├─POST /mcp (tools/call)───────►│
+  │    └─→ CommandHandler          │
+  │    └─→ ResponseBroker          │
+  │◄───200 (tool result)──────────┤
+```
+
+## Message Format
+
+**JSON-RPC Request:**
 ```json
 {
-  "type": "command_name",
-  "params": { ... },
-  "commandId": "cmd_123"
+  "jsonrpc": "2.0",
+  "id": 1,
+  "method": "tools/call",
+  "params": {
+    "name": "create_node",
+    "arguments": {
+      "node_type": "Sprite2D",
+      "node_name": "Player"
+    }
+  }
 }
 ```
 
-**Response (Godot to Server):**
+**JSON-RPC Response:**
 ```json
 {
-  "status": "success",
-  "result": { ... },
-  "commandId": "cmd_123"
+  "jsonrpc": "2.0",
+  "id": 1,
+  "result": {
+    "content": [
+      { "type": "text", "text": "{\"node_path\": \"./Player\"}" }
+    ]
+  }
 }
 ```
 
-**Error:**
-```json
-{
-  "status": "error",
-  "message": "Error description",
-  "commandId": "cmd_123"
-}
+**SSE Notification:**
 ```
-
-### Debugger Events
-
-Debugger uses events for real-time notifications:
-- `breakpoint_hit` - Execution hit a breakpoint
-- `execution_paused` / `execution_resumed` - Pause state changes
-- `stack_frame_changed` - Stack frame navigation
-
-Events are throttled (100ms minimum) to prevent flooding.
+event: message
+data: {"jsonrpc":"2.0","method":"notifications/debug/output","params":{...}}
+```
 
 ## Input Simulation
 
 Input commands flow through the debugger message system:
 
 ```
-TypeScript Server
-       |
-       v (WebSocket command)
-MCPInputCommands (editor-side)
-       |
-       v (EngineDebugger.send_message)
+MCPServerCore → CommandHandler → MCPInputCommands
+       │
+       ▼ (EngineDebugger.send_message)
 MCPInputHandler (runtime autoload)
-       |
-       v
+       │
+       ▼
 Godot Input System
 ```
 
@@ -124,13 +187,14 @@ Godot Input System
 
 ## Key Patterns
 
+- **JSON-RPC 2.0**: Standardized request/response protocol
 - **Command Pattern**: Commands encapsulated with type + params
-- **Proxy Pattern**: Server proxies Godot functionality to AI
-- **Observer Pattern**: WebSocket events for connections/messages
-- **Promise Pattern**: Async command execution with timeouts
+- **Response Broker**: Captures async command processor responses for MCP callers
+- **Observer Pattern**: SSE events for real-time notifications
+- **SSE Transport**: Keeps a persistent connection for server→client push
 
 ## Security
 
-- WebSocket accepts localhost connections only (default)
+- Server binds to `127.0.0.1` (localhost only) by default
 - All commands validated before execution
 - Errors isolated from crashing the editor

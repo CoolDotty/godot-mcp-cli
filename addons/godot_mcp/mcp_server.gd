@@ -1,7 +1,9 @@
 @tool
 extends EditorPlugin
 
-var websocket_server: MCPWebSocketServer
+var http_server: HttpServer = null
+var mcp_sse: MCPSse = null
+var mcp_core: MCPServerCore = null
 var command_handler = null  # Command handler reference
 var panel = null  # Reference to the MCP panel
 var runtime_debugger_bridge = null  # Runtime scene inspection bridge
@@ -24,13 +26,17 @@ func _enter_tree():
 	_try_register_debugger_bridge()
 	_register_input_handler_autoload()
 
-	print("\n=== MCP SERVER STARTING ===")
+	print("\n=== MCP HTTP+SSE SERVER STARTING ===")
 
-	# Initialize the websocket server
-	websocket_server = load("res://addons/godot_mcp/websocket_server.gd").new()
-	websocket_server.name = "WebSocketServer"
-	add_child(websocket_server)
-	websocket_server.connect("client_disconnected", Callable(self, "_on_client_disconnected"))
+	# Initialize the SSE manager (before HTTP server)
+	mcp_sse = load("res://addons/godot_mcp/mcp_sse.gd").new()
+	mcp_sse.name = "MCPSse"
+	add_child(mcp_sse)
+
+	# Initialize the MCP protocol core
+	mcp_core = load("res://addons/godot_mcp/mcp_server_core.gd").new()
+	mcp_core.name = "MCPServerCore"
+	add_child(mcp_core)
 
 	# Initialize the command handler
 	print("Creating command handler...")
@@ -39,17 +45,29 @@ func _enter_tree():
 		command_handler = Node.new()
 		command_handler.set_script(handler_script)
 		command_handler.name = "CommandHandler"
-		websocket_server.add_child(command_handler)
+		add_child(command_handler)
 
-		# Connect signals
-		print("Connecting command handler signals...")
-		websocket_server.connect("command_received", Callable(command_handler, "_handle_command"))
+		# Wire command handler to MCP core (replaces old websocket references)
+		mcp_core.set_command_handler(command_handler)
+		# Bind SSE session lifecycle to core — resets init state on disconnect
+		mcp_core.bind_sse(mcp_sse)
 	else:
 		printerr("Failed to load command handler script!")
 
+	# Initialize the HTTP server with GodotTPD
+	http_server = HttpServer.new()
+	http_server.port = MCPTypes.DEFAULT_PORT
+	http_server.bind_address = MCPTypes.DEFAULT_BIND
+	add_child(http_server)
+
+	# Create and register the MCP Router
+	var mcp_router = MCPRouter.new("/mcp", mcp_sse, mcp_core)
+	http_server.register_router(mcp_router)
+
 	# Initialize the control panel
 	panel = load("res://addons/godot_mcp/ui/mcp_panel.tscn").instantiate()
-	panel.websocket_server = websocket_server
+	panel.http_server = http_server
+	panel.mcp_sse = mcp_sse
 	add_control_to_bottom_panel(panel, "MCP Server")
 
 	# Initialize live debug output publisher
@@ -57,43 +75,46 @@ func _enter_tree():
 	if publisher_script:
 		debug_output_publisher = publisher_script.new()
 		debug_output_publisher.name = "DebugOutputPublisher"
-		debug_output_publisher.websocket_server = websocket_server
+		debug_output_publisher.mcp_sse = mcp_sse
 		add_child(debug_output_publisher)
 		Engine.set_meta("MCPDebugOutputPublisher", debug_output_publisher)
 
-	print("MCP Server plugin initialized")
-	# Server startup will be handled in _ready() with proper timing
+	print("MCP HTTP+SSE Server plugin initialized")
 
 func _ready():
-	# Wait for Godot to fully initialize before starting the server
-	_start_server_with_improved_timing()
+	# Auto-start the server after the editor is fully initialized
+	call_deferred("_auto_start_server")
 
-func _start_server_with_improved_timing(attempt: int = 0):
-	# Wait for full Godot initialization (double frame wait)
-	await get_tree().process_frame
-	await get_tree().process_frame
-
-	print("Attempting to start MCP WebSocket server...")
-	var start_result := websocket_server.start_server()
-
-	if start_result == OK:
-		print("✓ MCP WebSocket server started successfully")
-		# Verify server is actually ready
-		await get_tree().create_timer(0.5).timeout
-		if websocket_server.is_server_active():
-			print("✓ MCP WebSocket server verified and ready")
-		else:
-			print("⚠ MCP server started but not fully active, may need manual start")
-	elif start_result == ERR_ALREADY_IN_USE:
-		print("✓ MCP WebSocket server already running")
+func _auto_start_server(attempt: int = 0):
+	# Use a timer delay instead of await process_frame — more reliable in the editor
+	await get_tree().create_timer(0.5).timeout
+	
+	if not http_server:
+		return
+	
+	print("Attempting to start MCP HTTP server...")
+	http_server.start()
+	
+	# Verify and report
+	await get_tree().create_timer(0.5).timeout
+	if http_server._server and http_server._server.is_listening():
+		print("✓ MCP HTTP server auto-started on http://%s:%d" % [http_server.bind_address, http_server.port])
+		_sync_panel_ui()
 	else:
-		if attempt < 3:  # Retry up to 3 times
-			print("✗ MCP server start failed (code: %d), retrying in 1 second... (attempt %d/3)" % [start_result, attempt + 1])
+		if attempt < 3:
+			print("✗ MCP server start failed, retrying... (attempt %d/3)" % [attempt + 1])
 			await get_tree().create_timer(1.0).timeout
-			_start_server_with_improved_timing(attempt + 1)
+			_auto_start_server(attempt + 1)
 		else:
-			printerr("✗ Failed to start MCP server after 3 attempts (final code: %d)" % start_result)
-			printerr("Please use the 'Start' button in the MCP Server panel at the bottom of the editor")
+			printerr("✗ Failed to auto-start MCP server after 3 attempts")
+			printerr("Use the Start button in the MCP Server bottom panel")
+
+func _sync_panel_ui():
+	# Sync the panel UI to reflect the server state after auto-start
+	if panel and panel.has_method(&"_update_ui"):
+		panel._update_ui()
+	if panel and panel.has_method(&"_log_message"):
+		panel._log_message("Server auto-started on port " + str(http_server.port))
 
 func _exit_tree():
 	# Remove plugin instance from Engine metadata
@@ -122,18 +143,35 @@ func _exit_tree():
 		panel.queue_free()
 		panel = null
 
+	# Clean up debug output publisher
 	if debug_output_publisher:
 		debug_output_publisher.unsubscribe_all()
 		debug_output_publisher.queue_free()
 		debug_output_publisher = null
 
-	# Clean up the websocket server and command handler
-	if websocket_server:
-		websocket_server.stop_server()
-		websocket_server.queue_free()
-		websocket_server = null
+	# Clean up SSE connections
+	if mcp_sse:
+		mcp_sse.clear_all()
+		mcp_sse.queue_free()
+		mcp_sse = null
 
-	print("=== MCP SERVER SHUTDOWN ===")
+	# Clean up command handler
+	if command_handler:
+		command_handler.queue_free()
+		command_handler = null
+
+	# Clean up HTTP server
+	if http_server:
+		http_server.stop()
+		http_server.queue_free()
+		http_server = null
+
+	# Clean up MCP core
+	if mcp_core:
+		mcp_core.queue_free()
+		mcp_core = null
+
+	print("=== MCP HTTP+SSE SERVER SHUTDOWN ===")
 
 # Method to get the debugger bridge for other components
 func get_debugger_bridge():
@@ -226,11 +264,6 @@ func _update_debugger_captures(enable: bool) -> void:
 		else:
 			if not has_query or engine_debugger.has_capture(name):
 				engine_debugger.set_capture(name, false)
-
-func _on_client_disconnected(client_id: int) -> void:
-	if debug_output_publisher:
-		debug_output_publisher.unsubscribe(client_id)
-
 
 func _register_input_handler_autoload() -> void:
 	# Check if autoload already exists

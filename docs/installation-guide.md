@@ -2,83 +2,104 @@
 
 ## Prerequisites
 
-- Godot 4.x
-- Node.js 18+ and npm
+- Godot 4.x (any release supporting GDScript tool mode)
+- No Node.js required — the addon is pure GDScript
 
 ## Installation
 
-### Option 1: Install via npm (Recommended)
+The MCP addon is a self-contained Godot plugin. Simply copy it to your project.
+
+### Via Git Clone
 
 ```bash
-npm install -g godot-mcp-cli
+git clone https://github.com/CoolDotty/godot-mcp-cli.git
 ```
 
-### Option 2: Build from Source
+Copy `addons/godot_mcp/` from the cloned repo into your Godot project's `addons/` directory.
 
-```bash
-git clone https://github.com/nguyenchiencong/godot-mcp-cli.git
-cd godot-mcp-cli/server
-npm install
-npm run build
-npm link
+### Manual Copy
+
+If you already have the source, copy the `addons/godot_mcp/` folder into your project's `addons/` directory.
+
+Your project structure should look like:
+
+```
+your-project/
+├── project.godot
+├── addons/
+│   └── godot_mcp/
+│       ├── plugin.cfg
+│       ├── mcp_server.gd
+│       ├── mcp_types.gd
+│       ├── mcp_sse.gd
+│       ├── mcp_server_core.gd
+│       ├── mcp_router.gd
+│       ├── command_handler.gd
+│       ├── commands/*.gd
+│       ├── godottpd/          # HTTP server library (vendored)
+│       │   ├── http_server.gd
+│       │   ├── http_router.gd
+│       │   ├── http_request.gd
+│       │   ├── http_response.gd
+│       │   └── http_file_router.gd
+│       ├── ui/mcp_panel.*
+│       └── utils/*.gd
+└── (your game files)
 ```
 
-## Setup
-
-### 1. Install Addon to Your Project
-
-```bash
-godot-mcp install-addon "C:/path/to/your/project"
-```
-
-Or manually copy `addons/godot_mcp` to your project's `addons` folder.
-
-### 2. Enable Plugin
+## Enable Plugin
 
 1. Open your project in Godot
-2. Go to Project > Project Settings > Plugins
-3. Enable "Godot MCP"
+2. Go to **Project > Project Settings > Plugins**
+3. Find **"Godot MCP"** in the list
+4. Click the checkbox to enable it
 
-The WebSocket server starts automatically on port 9080.
+The MCP server starts automatically on port 9080 when the editor loads.
 
-## Usage
+## Verify Installation
 
-### CLI (Recommended)
+You can verify the server is running with a simple curl command:
 
 ```bash
-godot-mcp --list-tools           # List available tools
-godot-mcp get_project_info       # Execute a tool
-godot-mcp --help <tool_name>     # Get help for a tool
+# Health check
+curl http://localhost:9080/
+# Expected: {"status":"ok","server":"godot-mcp","transport":"sse+http"}
+
+# List available MCP tools
+curl -X POST http://localhost:9080/mcp \
+  -H 'Content-Type: application/json' \
+  -d '{"jsonrpc":"2.0","id":1,"method":"tools/list"}'
 ```
 
-### MCP Protocol
+## MCP Client Configuration
 
-Add to your MCP client config:
+Add to your MCP client config (e.g., Claude Desktop, Continue.dev):
 
 ```json
 {
   "mcpServers": {
     "godot-mcp": {
-      "command": "godot-mcp",
-      "env": { "MCP_TRANSPORT": "stdio" }
+      "url": "http://localhost:9080/mcp"
     }
   }
 }
 ```
 
-Or if running from source:
+The server uses SSE (Server-Sent Events) transport on the same `/mcp` endpoint:
+- `GET /mcp` with `Accept: text/event-stream` — Establish SSE connection
+- `POST /mcp` — Send JSON-RPC requests (tool calls, resource reads)
 
-```json
-{
-  "mcpServers": {
-    "godot-mcp": {
-      "command": "node",
-      "args": ["path/to/godot-mcp-cli/server/dist/index.js"],
-      "env": { "MCP_TRANSPORT": "stdio" }
-    }
-  }
-}
-```
+## Port and Binding
+
+The server listens on port **9080** bound to **127.0.0.1** (localhost only). You can change this in two ways:
+
+### Via the MCP Panel
+1. Open the **MCP Server** tab at the bottom of the Godot editor
+2. Adjust the port number in the panel
+3. Click **Stop Server** then **Start Server** to apply
+
+### Via Script (for programmatic changes)
+The server reads from `MCPTypes.DEFAULT_PORT` and `MCPTypes.DEFAULT_BIND` in `mcp_types.gd`.
 
 ## Testing the Debugger
 
@@ -87,18 +108,20 @@ This repository includes a test project for verifying debugger functionality.
 ### Quick Test
 
 ```bash
-# 1. Run the project (from Godot or CLI)
-godot-mcp run_project
+# 1. Open the test scene
+# 2. Run the project (F5)
+# 3. Use MCP tools from your AI assistant:
 
-# 2. Set a breakpoint
-godot-mcp debugger_set_breakpoint --script-path res://test_debugger.gd --line 42
+# Set a breakpoint
+tools/call → debugger_set_breakpoint
+  script_path: res://test_debugger.gd
+  line: 42
 
-# 3. Wait for breakpoint hit, then check state
-godot-mcp debugger_get_current_state
-godot-mcp debugger_get_call_stack
+# Check state
+tools/call → debugger_get_current_state
 
-# 4. Resume execution
-godot-mcp debugger_resume_execution
+# Resume execution
+tools/call → debugger_resume_execution
 ```
 
 ### Test Scene Controls
@@ -113,16 +136,16 @@ The scene auto-triggers breakpoints every ~60 frames.
 ### Debugger Requirements
 
 - Run with **F5** (Debug) in Godot Editor, not F6
-- WebSocket server must be running (auto-starts with plugin)
+- MCP server must be running (auto-starts with plugin)
 - Only one client can receive debugger events at a time
 
 ## Troubleshooting
 
 ### Connection Issues
 
-- Verify WebSocket server is running (check Godot MCP panel)
-- Default port is 9080
-- Check firewall isn't blocking localhost
+- Verify the MCP server is running (check the **MCP Server** panel at the bottom of the editor)
+- Default port is 9080 — confirm nothing else is using it
+- Check firewall isn't blocking localhost connections
 
 ### Debugger Issues
 
@@ -135,6 +158,6 @@ The scene auto-triggers breakpoints every ~60 frames.
 
 ### Command Errors
 
-- Check Godot console for errors
+- Check Godot console for errors (Output panel)
 - Verify paths use `res://` format
 - Ensure a scene is loaded

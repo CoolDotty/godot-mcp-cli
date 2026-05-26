@@ -8,8 +8,13 @@ var _command_processors = []
 func _ready():
 	print("Command handler initializing...")
 	await get_tree().process_frame
-	_websocket_server = get_parent()
-	print("WebSocket server reference set: ", _websocket_server)
+	# Use externally set _websocket_server (e.g. from MCPServerCore's ResponseBroker)
+	# Fall back to parent for backward compatibility with old architecture
+	if _websocket_server == null:
+		_websocket_server = get_parent()
+		print("Command handler using parent as server reference: ", _websocket_server)
+	else:
+		print("Command handler using external server reference: ", _websocket_server)
 	
 	# Initialize command processors
 	_initialize_command_processors()

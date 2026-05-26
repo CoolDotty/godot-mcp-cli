@@ -1,7 +1,8 @@
 @tool
 extends Control
 
-var websocket_server: MCPWebSocketServer
+var http_server: HttpServer = null
+var mcp_sse: MCPSse = null
 var status_label: Label
 var port_input: SpinBox
 var start_button: Button
@@ -26,15 +27,12 @@ func _ready():
 	
 	# Setup server signals once it's available
 	await get_tree().process_frame
-	if websocket_server:
-		websocket_server.connect("client_connected", Callable(self, "_on_client_connected"))
-		websocket_server.connect("client_disconnected", Callable(self, "_on_client_disconnected"))
-		websocket_server.connect("command_received", Callable(self, "_on_command_received"))
-		
-		port_input.value = websocket_server.get_port()
+	if http_server and http_server._server:
+		# The HttpServer uses _server (TCPServer) internally
+		_log_message("Server configured on port %d" % http_server.port)
 
 func _update_ui():
-	if not websocket_server:
+	if not http_server:
 		status_label.text = "Server: Not initialized"
 		start_button.disabled = true
 		stop_button.disabled = true
@@ -42,7 +40,7 @@ func _update_ui():
 		connection_count_label.text = "0"
 		return
 	
-	var is_active = websocket_server.is_server_active()
+	var is_active = http_server._server and http_server._server.is_listening()
 	
 	status_label.text = "Server: " + ("Running" if is_active else "Stopped")
 	start_button.disabled = is_active
@@ -50,42 +48,28 @@ func _update_ui():
 	port_input.editable = not is_active
 	
 	if is_active:
-		connection_count_label.text = str(websocket_server.get_client_count())
+		var count = 0
+		if mcp_sse:
+			count = mcp_sse.get_client_count()
+		connection_count_label.text = str(count)
 	else:
 		connection_count_label.text = "0"
 
 func _on_start_button_pressed():
-	if websocket_server:
-		var result = websocket_server.start_server()
-		if result == OK:
-			_log_message("Server started on port " + str(websocket_server.get_port()))
-		else:
-			_log_message("Failed to start server: " + str(result))
+	if http_server:
+		http_server.port = int(port_input.value)
+		http_server.start()
+		_log_message("Server started on port " + str(http_server.port))
 		_update_ui()
 
 func _on_stop_button_pressed():
-	if websocket_server:
-		websocket_server.stop_server()
+	if http_server:
+		http_server.stop()
 		_log_message("Server stopped")
 		_update_ui()
 
 func _on_port_changed(new_port: float):
-	if websocket_server:
-		websocket_server.set_port(int(new_port))
-		_log_message("Port changed to " + str(int(new_port)))
-
-func _on_client_connected(client_id: int):
-	_log_message("Client connected: " + str(client_id))
-	_update_ui()
-
-func _on_client_disconnected(client_id: int):
-	_log_message("Client disconnected: " + str(client_id))
-	_update_ui()
-
-func _on_command_received(client_id: int, command: Dictionary):
-	var command_type = command.get("type", "unknown")
-	var command_id = command.get("commandId", "no-id")
-	_log_message("Received command: " + command_type + " (ID: " + command_id + ") from client " + str(client_id))
+	_log_message("Port changed to " + str(int(new_port)))
 
 func _log_message(message: String):
 	var timestamp = Time.get_datetime_string_from_system()
