@@ -4,11 +4,11 @@ extends EditorPlugin
 var http_server: HttpServer = null
 var mcp_sse: MCPSse = null
 var mcp_core: MCPServerCore = null
-var command_handler = null  # Command handler reference
-var panel = null  # Reference to the MCP panel
-var runtime_debugger_bridge = null  # Runtime scene inspection bridge
-var debugger_bridge = null  # Debugger control bridge
-var debug_output_publisher = null  # Live debug output broadcaster
+var command_handler = null # Command handler reference
+var panel = null # Reference to the MCP panel
+var runtime_debugger_bridge = null # Runtime scene inspection bridge
+var debugger_bridge = null # Debugger control bridge
+var debug_output_publisher = null # Live debug output broadcaster
 var _runtime_bridge_warning_logged := false
 var _debugger_bridge_warning_logged := false
 const SCENE_CAPTURE_NAMES := ["scene", "limboai", "mcp_eval", "mcp_input"]
@@ -16,6 +16,7 @@ const STACK_CAPTURE_NAMES := ["stack", "call_stack", "callstack"]
 
 const INPUT_HANDLER_AUTOLOAD_NAME := "MCPInputHandler"
 const INPUT_HANDLER_SCRIPT_PATH := "res://addons/godot_mcp/mcp_input_handler.gd"
+
 
 func _enter_tree():
 	# Store plugin instance for EditorInterface access
@@ -81,20 +82,22 @@ func _enter_tree():
 
 	print("MCP HTTP+SSE Server plugin initialized")
 
+
 func _ready():
 	# Auto-start the server after the editor is fully initialized
 	call_deferred("_auto_start_server")
 
+
 func _auto_start_server(attempt: int = 0):
 	# Use a timer delay instead of await process_frame — more reliable in the editor
 	await get_tree().create_timer(0.5).timeout
-	
+
 	if not http_server:
 		return
-	
+
 	print("Attempting to start MCP HTTP server...")
 	http_server.start()
-	
+
 	# Verify and report
 	await get_tree().create_timer(0.5).timeout
 	if http_server._server and http_server._server.is_listening():
@@ -109,12 +112,14 @@ func _auto_start_server(attempt: int = 0):
 			printerr("✗ Failed to auto-start MCP server after 3 attempts")
 			printerr("Use the Start button in the MCP Server bottom panel")
 
+
 func _sync_panel_ui():
 	# Sync the panel UI to reflect the server state after auto-start
 	if panel and panel.has_method(&"_update_ui"):
 		panel._update_ui()
 	if panel and panel.has_method(&"_log_message"):
 		panel._log_message("Server auto-started on port " + str(http_server.port))
+
 
 func _exit_tree():
 	# Remove plugin instance from Engine metadata
@@ -173,17 +178,21 @@ func _exit_tree():
 
 	print("=== MCP HTTP+SSE SERVER SHUTDOWN ===")
 
+
 # Method to get the debugger bridge for other components
 func get_debugger_bridge():
 	return debugger_bridge
+
 
 # Helper function for command processors to access EditorInterface
 func get_editor_interface():
 	return super.get_editor_interface()
 
+
 # Helper function for command processors to get undo/redo manager
 func get_undo_redo():
 	return super.get_undo_redo()
+
 
 func _try_register_runtime_bridge() -> bool:
 	if runtime_debugger_bridge:
@@ -217,6 +226,7 @@ func _try_register_runtime_bridge() -> bool:
 	print("Godot MCP runtime scene inspection enabled.")
 	return true
 
+
 func _try_register_debugger_bridge() -> bool:
 	if debugger_bridge:
 		return true
@@ -248,6 +258,7 @@ func _try_register_debugger_bridge() -> bool:
 	print("Godot MCP debugger bridge enabled.")
 	return true
 
+
 func _update_debugger_captures(enable: bool) -> void:
 	if not Engine.has_singleton("EngineDebugger"):
 		return
@@ -265,17 +276,18 @@ func _update_debugger_captures(enable: bool) -> void:
 			if not has_query or engine_debugger.has_capture(name):
 				engine_debugger.set_capture(name, false)
 
+
 func _register_input_handler_autoload() -> void:
 	# Check if autoload already exists
 	if ProjectSettings.has_setting("autoload/" + INPUT_HANDLER_AUTOLOAD_NAME):
 		print("MCP Input Handler autoload already registered.")
 		return
-	
+
 	# Verify the script exists
 	if not FileAccess.file_exists(INPUT_HANDLER_SCRIPT_PATH):
 		printerr("MCP Input Handler script not found at: " + INPUT_HANDLER_SCRIPT_PATH)
 		return
-	
+
 	# Add the autoload
 	ProjectSettings.set_setting("autoload/" + INPUT_HANDLER_AUTOLOAD_NAME, "*" + INPUT_HANDLER_SCRIPT_PATH)
 	ProjectSettings.save()
@@ -286,7 +298,7 @@ func _remove_input_handler_autoload() -> void:
 	# Check if autoload exists before removing
 	if not ProjectSettings.has_setting("autoload/" + INPUT_HANDLER_AUTOLOAD_NAME):
 		return
-	
+
 	# Remove the autoload
 	ProjectSettings.set_setting("autoload/" + INPUT_HANDLER_AUTOLOAD_NAME, null)
 	ProjectSettings.save()

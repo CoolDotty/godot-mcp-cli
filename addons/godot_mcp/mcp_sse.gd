@@ -13,7 +13,7 @@ signal sse_client_disconnected(client_id: int)
 var keepalive_interval: float = MCPTypes.SSE_KEEPALIVE_INTERVAL
 
 # Active SSE connections: client_id -> StreamPeerTCP
-var _sse_clients: Dictionary = {}
+var _sse_clients: Dictionary = { }
 
 # Incremental client ID counter
 var _next_client_id: int = 1
@@ -40,16 +40,20 @@ func register_client(stream: StreamPeerTCP) -> int:
 	var client_id := _next_client_id
 	_next_client_id += 1
 	_sse_clients[client_id] = stream
-	
+
 	# Send the initial SSE endpoint event (per MCP SSE spec)
-	send_sse_event(client_id, "endpoint", {
-		"uri": "/mcp"
-	})
-	
+	send_sse_event(
+		client_id,
+		"endpoint",
+		{
+			"uri": "/mcp",
+		},
+	)
+
 	# Start keepalive timer on first client
 	if _sse_clients.size() == 1:
 		_keepalive_timer.start()
-	
+
 	return client_id
 
 
@@ -74,14 +78,14 @@ func is_client_connected(client_id: int) -> bool:
 func send_sse_event(client_id: int, event_type: String, data: Variant = null) -> bool:
 	if not _sse_clients.has(client_id):
 		return false
-	
+
 	var stream: StreamPeerTCP = _sse_clients[client_id]
 	stream.poll()
-	
+
 	if stream.get_status() != StreamPeerTCP.STATUS_CONNECTED:
 		unregister_client(client_id)
 		return false
-	
+
 	var payload := ""
 	if event_type != "":
 		payload += "event: %s\n" % event_type
@@ -90,12 +94,12 @@ func send_sse_event(client_id: int, event_type: String, data: Variant = null) ->
 		for line in json_str.split("\n"):
 			payload += "data: %s\n" % line
 	payload += "\n"
-	
+
 	var err := stream.put_data(payload.to_utf8_buffer())
 	if err != OK:
 		unregister_client(client_id)
 		return false
-	
+
 	return true
 
 
@@ -150,7 +154,7 @@ func _process(delta: float) -> void:
 	if _poll_accumulator < _poll_interval:
 		return
 	_poll_accumulator = 0.0
-	
+
 	var disconnected: Array[int] = []
 	for cid in _sse_clients.keys():
 		var stream: StreamPeerTCP = _sse_clients[cid]

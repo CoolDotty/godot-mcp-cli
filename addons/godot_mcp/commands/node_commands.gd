@@ -19,7 +19,8 @@ func process_command(client_id: int, command_type: String, params: Dictionary, c
 		"list_nodes":
 			_list_nodes(client_id, params, command_id)
 			return true
-	return false  # Command not handled
+	return false # Command not handled
+
 
 func _create_node(client_id: int, params: Dictionary, command_id: String) -> void:
 	var parent_path = params.get("parent_path", ".")
@@ -68,9 +69,14 @@ func _create_node(client_id: int, params: Dictionary, command_id: String) -> voi
 	# Mark the scene as modified
 	_mark_scene_modified()
 
-	_send_success(client_id, {
-		"node_path": parent_path + "/" + node_name
-	}, command_id)
+	_send_success(
+		client_id,
+		{
+			"node_path": parent_path + "/" + node_name,
+		},
+		command_id,
+	)
+
 
 func _delete_node(client_id: int, params: Dictionary, command_id: String) -> void:
 	var node_path = params.get("node_path", "")
@@ -111,9 +117,14 @@ func _delete_node(client_id: int, params: Dictionary, command_id: String) -> voi
 	# Mark the scene as modified
 	_mark_scene_modified()
 
-	_send_success(client_id, {
-		"deleted_node_path": node_path
-	}, command_id)
+	_send_success(
+		client_id,
+		{
+			"deleted_node_path": node_path,
+		},
+		command_id,
+	)
+
 
 func _update_node_property(client_id: int, params: Dictionary, command_id: String) -> void:
 	var node_path = params.get("node_path", "")
@@ -166,12 +177,17 @@ func _update_node_property(client_id: int, params: Dictionary, command_id: Strin
 	# Mark the scene as modified
 	_mark_scene_modified()
 
-	_send_success(client_id, {
-		"node_path": node_path,
-		"property": property_name,
-		"value": property_value,
-		"parsed_value": str(parsed_value)
-	}, command_id)
+	_send_success(
+		client_id,
+		{
+			"node_path": node_path,
+			"property": property_name,
+			"value": property_value,
+			"parsed_value": str(parsed_value),
+		},
+		command_id,
+	)
+
 
 func _get_node_properties(client_id: int, params: Dictionary, command_id: String) -> void:
 	var node_path = params.get("node_path", "")
@@ -186,18 +202,23 @@ func _get_node_properties(client_id: int, params: Dictionary, command_id: String
 		return _send_error(client_id, "Node not found: %s" % node_path, command_id)
 
 	# Get all properties
-	var properties = {}
+	var properties = { }
 	var property_list = node.get_property_list()
 
 	for prop in property_list:
 		var name = prop["name"]
-		if not name.begins_with("_"):  # Skip internal properties
+		if not name.begins_with("_"): # Skip internal properties
 			properties[name] = node.get(name)
 
-	_send_success(client_id, {
-		"node_path": node_path,
-		"properties": properties
-	}, command_id)
+	_send_success(
+		client_id,
+		{
+			"node_path": node_path,
+			"properties": properties,
+		},
+		command_id,
+	)
+
 
 func _list_nodes(client_id: int, params: Dictionary, command_id: String) -> void:
 	var parent_path = params.get("parent_path", ".")
@@ -210,13 +231,19 @@ func _list_nodes(client_id: int, params: Dictionary, command_id: String) -> void
 	# Get children
 	var children = []
 	for child in parent.get_children():
-		children.append({
-			"name": child.name,
-			"type": child.get_class(),
-			"path": str(child.get_path()).replace(str(parent.get_path()), parent_path)
-		})
+		children.append(
+			{
+				"name": child.name,
+				"type": child.get_class(),
+				"path": str(child.get_path()).replace(str(parent.get_path()), parent_path),
+			},
+		)
 
-	_send_success(client_id, {
-		"parent_path": parent_path,
-		"children": children
-	}, command_id)
+	_send_success(
+		client_id,
+		{
+			"parent_path": parent_path,
+			"children": children,
+		},
+		command_id,
+	)

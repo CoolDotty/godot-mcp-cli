@@ -4,6 +4,7 @@ extends Node
 
 var _websocket_server = null
 
+
 func process_command(client_id: int, command_type: String, params: Dictionary, command_id: String) -> bool:
 	match command_type:
 		"list_project_files":
@@ -12,44 +13,47 @@ func process_command(client_id: int, command_type: String, params: Dictionary, c
 		"list_assets_by_type":
 			_handle_list_assets_by_type(client_id, params, command_id)
 			return true
-	
+
 	# Command not handled by this processor
 	return false
 
 # ---- Project File Listing ----
 
+
 func _handle_list_project_files(client_id: int, params: Dictionary, command_id: String) -> void:
 	var extensions = params.get("extensions", [])
-	
+
 	var result = list_project_files(extensions)
-	
+
 	var response = {
 		"status": "success",
-		"result": result
+		"result": result,
 	}
-	
+
 	if not command_id.is_empty():
 		response["commandId"] = command_id
-	
+
 	_websocket_server.send_response(client_id, response)
+
 
 func list_project_files(extensions: Array) -> Dictionary:
 	var result = []
-	
+
 	# Get all files recursively
 	var dir = DirAccess.open("res://")
 	if dir:
 		_list_files_recursive(dir, "res://", extensions, result)
-	
+
 	return {
-		"files": result
+		"files": result,
 	}
+
 
 # Helper function to recursively list files
 func _list_files_recursive(dir: DirAccess, path: String, extensions: Array, result: Array) -> void:
 	# Open the directory
 	dir.list_dir_begin()
-	
+
 	# Loop through all files and directories
 	var file_name = dir.get_next()
 	while file_name != "":
@@ -69,27 +73,29 @@ func _list_files_recursive(dir: DirAccess, path: String, extensions: Array, resu
 						if file_name.ends_with(ext):
 							result.append(full_path)
 							break
-		
+
 		file_name = dir.get_next()
-	
+
 	dir.list_dir_end()
 
 # ---- Asset Type Listing ----
 
+
 func _handle_list_assets_by_type(client_id: int, params: Dictionary, command_id: String) -> void:
 	var type = params.get("type", "all")
-	
+
 	var result = list_assets_by_type(type)
-	
+
 	var response = {
 		"status": "success",
-		"result": result
+		"result": result,
 	}
-	
+
 	if not command_id.is_empty():
 		response["commandId"] = command_id
-	
+
 	_websocket_server.send_response(client_id, response)
+
 
 func list_assets_by_type(type: String) -> Dictionary:
 	# Define file extensions for each asset type
@@ -102,7 +108,7 @@ func list_assets_by_type(type: String) -> Dictionary:
 		"resources": [".tres", ".res", ".theme", ".material"],
 		"scripts": [".gd"],
 		"scenes": [".tscn"],
-		"all": [] # Will retrieve everything
+		"all": [], # Will retrieve everything
 	}
 
 	# Get extensions for the requested type
@@ -116,38 +122,38 @@ func list_assets_by_type(type: String) -> Dictionary:
 			"extensions": [],
 			"count": 0,
 			"files": [],
-			"organizedFiles": {},
-			"error": "Unknown asset type: %s. Valid types are: %s" % [type, ", ".join(extension_map.keys())]
+			"organizedFiles": { },
+			"error": "Unknown asset type: %s. Valid types are: %s" % [type, ", ".join(extension_map.keys())],
 		}
-	
+
 	# Get files
 	var file_result = list_project_files(extensions)
 	var files = file_result.get("files", [])
-	
+
 	# Group by folder structure for better navigation
-	var organized_files = {}
+	var organized_files = { }
 	for file_path in files:
 		var parts = file_path.split("/")
 		var current = organized_files
-		
+
 		# Skip the first "res://" part if present
 		var start_idx = 1 if parts[0] == "res:" else 0
-		
+
 		# Process path parts
 		for i in range(start_idx, parts.size() - 1):
 			var part = parts[i]
 			if not current.has(part):
-				current[part] = {}
+				current[part] = { }
 			current = current[part]
-		
+
 		# For the leaf/filename
 		var file_name = parts[parts.size() - 1]
 		current[file_name] = file_path
-	
+
 	return {
 		"assetType": type,
 		"extensions": extensions,
 		"count": files.size(),
 		"files": files,
-		"organizedFiles": organized_files
+		"organizedFiles": organized_files,
 	}

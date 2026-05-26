@@ -22,13 +22,13 @@ enum ErrorCode {
 	METHOD_NOT_FOUND = -32601,
 	INVALID_PARAMS = -32602,
 	INTERNAL_ERROR = -32603,
-	
+
 	# MCP-specific (from spec)
 	TOOL_NOT_FOUND = -32000,
 	TOOL_EXECUTION_ERROR = -32001,
 	RESOURCE_NOT_FOUND = -32002,
 	RESOURCE_ACCESS_ERROR = -32003,
-	
+
 	# Custom
 	NOT_INITIALIZED = -32010,
 	ALREADY_INITIALIZED = -32011,
@@ -51,8 +51,9 @@ const NOTIFICATION_METHODS := {
 	Notification.STOPPED: "notifications/stopped",
 }
 
+
 ## Create a standard MCP JSON-RPC request
-static func make_request(method: String, params: Dictionary = {}, id: Variant = null) -> Dictionary:
+static func make_request(method: String, params: Dictionary = { }, id: Variant = null) -> Dictionary:
 	var req := {
 		"jsonrpc": "2.0",
 		"method": method,
@@ -63,13 +64,15 @@ static func make_request(method: String, params: Dictionary = {}, id: Variant = 
 		req["id"] = id
 	return req
 
+
 ## Create a standard MCP JSON-RPC success response
-static func make_success_response(id: Variant, result: Dictionary = {}) -> Dictionary:
+static func make_success_response(id: Variant, result: Dictionary = { }) -> Dictionary:
 	return {
 		"jsonrpc": "2.0",
 		"id": id,
 		"result": result,
 	}
+
 
 ## Create a standard MCP JSON-RPC error response
 static func make_error_response(id: Variant, code: int, message: String, data: Variant = null) -> Dictionary:
@@ -79,14 +82,15 @@ static func make_error_response(id: Variant, code: int, message: String, data: V
 		"error": {
 			"code": code,
 			"message": message,
-		}
+		},
 	}
 	if data != null:
 		err["error"]["data"] = data
 	return err
 
+
 ## Create a standard MCP JSON-RPC notification (no id)
-static func make_notification(method: String, params: Dictionary = {}) -> Dictionary:
+static func make_notification(method: String, params: Dictionary = { }) -> Dictionary:
 	var notif := {
 		"jsonrpc": "2.0",
 		"method": method,
@@ -94,6 +98,7 @@ static func make_notification(method: String, params: Dictionary = {}) -> Dictio
 	if not params.is_empty():
 		notif["params"] = params
 	return notif
+
 
 ## Build a JSON Schema for a tool parameter
 static func make_param_schema(name: String, description: String, param_type: String = "string", required: bool = true) -> Dictionary:

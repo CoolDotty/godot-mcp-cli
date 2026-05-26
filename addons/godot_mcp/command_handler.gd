@@ -5,6 +5,7 @@ extends Node
 var _websocket_server
 var _command_processors = []
 
+
 func _ready():
 	print("Command handler initializing...")
 	await get_tree().process_frame
@@ -15,11 +16,12 @@ func _ready():
 		print("Command handler using parent as server reference: ", _websocket_server)
 	else:
 		print("Command handler using external server reference: ", _websocket_server)
-	
+
 	# Initialize command processors
 	_initialize_command_processors()
-	
+
 	print("Command handler initialized and ready to process commands")
+
 
 func _initialize_command_processors():
 	# Create and add all required command processors
@@ -32,7 +34,7 @@ func _initialize_command_processors():
 	var debugger_commands = MCPDebuggerCommands.new()
 	var input_commands = MCPInputCommands.new()
 	var formatter_commands = MCPFormatterCommands.new()
-	
+
 	# Set server reference for all processors
 	node_commands._websocket_server = _websocket_server
 	script_commands._websocket_server = _websocket_server
@@ -43,7 +45,7 @@ func _initialize_command_processors():
 	debugger_commands._websocket_server = _websocket_server
 	input_commands._websocket_server = _websocket_server
 	formatter_commands._websocket_server = _websocket_server
-	
+
 	# Add them to our processor list
 	_command_processors.append(node_commands)
 	_command_processors.append(script_commands)
@@ -54,12 +56,12 @@ func _initialize_command_processors():
 	_command_processors.append(debugger_commands)
 	_command_processors.append(input_commands)
 	_command_processors.append(formatter_commands)
-	
+
 	# Try to load optional command classes
 	var script_resource_commands = _try_load_optional_command("res://addons/godot_mcp/mcp_script_resource_commands.gd")
 	var enhanced_commands = _try_load_optional_command("res://addons/godot_mcp/mcp_enhanced_commands.gd")
 	var asset_commands = _try_load_optional_command("res://addons/godot_mcp/mcp_asset_commands.gd")
-	
+
 	# Add required processors as children for proper lifecycle management
 	add_child(node_commands)
 	add_child(script_commands)
@@ -70,7 +72,7 @@ func _initialize_command_processors():
 	add_child(debugger_commands)
 	add_child(input_commands)
 	add_child(formatter_commands)
-	
+
 	print("Command processors initialized:")
 	print("- Node Commands")
 	print("- Script Commands")
@@ -81,13 +83,14 @@ func _initialize_command_processors():
 	print("- Debugger Commands")
 	print("- Input Commands")
 	print("- Formatter Commands")
-	
+
 	if script_resource_commands:
 		print("- Script Resource Commands")
 	if enhanced_commands:
 		print("- Enhanced Commands")
 	if asset_commands:
 		print("- Asset Commands")
+
 
 func _try_load_optional_command(path: String) -> Node:
 	if FileAccess.file_exists(path):
@@ -101,13 +104,14 @@ func _try_load_optional_command(path: String) -> Node:
 			return command
 	return null
 
+
 func _handle_command(client_id: int, command: Dictionary) -> void:
 	var command_type = command.get("type", "")
-	var params = command.get("params", {})
+	var params = command.get("params", { })
 	var command_id = command.get("commandId", "")
-	
+
 	print("Processing command: %s" % command_type)
-	
+
 	# Special handling for enhanced commands
 	var enhanced_commands = [
 		"get_editor_scene_structure",
@@ -121,7 +125,7 @@ func _handle_command(client_id: int, command: Dictionary) -> void:
 		"clear_editor_errors",
 		"subscribe_debug_output",
 		"unsubscribe_debug_output",
-		"update_node_transform"
+		"update_node_transform",
 	]
 	if command_type in enhanced_commands:
 		# Try to find enhanced commands processor first
@@ -131,7 +135,7 @@ func _handle_command(client_id: int, command: Dictionary) -> void:
 				if handled:
 					print("Command %s handled by Enhanced Commands processor" % command_type)
 					return
-	
+
 	# Try each processor until one handles the command
 	for processor in _command_processors:
 		var handled = await _call_processor(processor, client_id, command_type, params, command_id)
@@ -142,17 +146,19 @@ func _handle_command(client_id: int, command: Dictionary) -> void:
 	# If no processor handled the command, send an error
 	_send_error(client_id, "Unknown command: %s" % command_type, command_id)
 
+
 func _send_error(client_id: int, message: String, command_id: String) -> void:
 	var response = {
 		"status": "error",
-		"message": message
+		"message": message,
 	}
-	
+
 	if not command_id.is_empty():
 		response["commandId"] = command_id
-	
+
 	_websocket_server.send_response(client_id, response)
 	print("Error: %s" % message)
+
 
 func _processor_requires_await(processor: Node) -> bool:
 	if processor is MCPDebuggerCommands:
@@ -164,6 +170,7 @@ func _processor_requires_await(processor: Node) -> bool:
 		if path.ends_with("mcp_enhanced_commands.gd"):
 			return true
 	return false
+
 
 func _call_processor(processor: Node, client_id: int, command_type: String, params: Dictionary, command_id: String) -> bool:
 	if _processor_requires_await(processor):

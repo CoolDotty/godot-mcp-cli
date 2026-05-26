@@ -25,6 +25,7 @@ var listfiles: bool = false
 var weekdays: Array[String] = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun']
 var monthnames: Array[String] = ['___', 'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']
 
+
 ## Creates an HttpFileRouter intance
 ## [br]
 ## [br][param path] - Full path to the folder which will be exposed to web.
@@ -33,24 +34,25 @@ var monthnames: Array[String] = ['___', 'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun'
 ## [br] - [param extensions]: A list of extensions that will be checked if no file extension is provided by the request
 ## [br]	- [param exclude_extensions]: A list of extensions that will be excluded if requested
 func _init(
-	path: String,
-	localpath: String,
-	options: Dictionary = {
-		'index_page': index_page,
-		'fallback_page': fallback_page,
-		'extensions': extensions,
-		'exclude_extensions': exclude_extensions,
-		'listfiles': listfiles,
-		'condition': condition,
-	}
-	) -> void:
+		path: String,
+		localpath: String,
+		options: Dictionary = {
+			'index_page': index_page,
+			'fallback_page': fallback_page,
+			'extensions': extensions,
+			'exclude_extensions': exclude_extensions,
+			'listfiles': listfiles,
+			'condition': condition,
+		},
+) -> void:
 	self.index_page = options.get("index_page", self.index_page)
 	self.fallback_page = options.get("fallback_page", self.fallback_page)
 	self.extensions = options.get("extensions", self.extensions)
 	self.exclude_extensions = options.get("exclude_extensions", self.exclude_extensions)
 	self.listfiles = options.get('listfiles', self.listfiles)
 	self.localpath = localpath
-	super(path, {'get': _handle_get, 'condition': options.get('condition', self.condition)})
+	super(path, { 'get': _handle_get, 'condition': options.get('condition', self.condition) })
+
 
 ## Handle a GET request
 ## [br]
@@ -60,7 +62,7 @@ func _handle_get(request: HttpRequest, response: HttpResponse) -> bool:
 	var serving_path: String = (path + request.path).uri_decode()
 	var serving_dir = serving_path
 	var file_exists: bool = _file_exists(serving_path)
-	
+
 	if request.path == "/" and not file_exists:
 		if index_page.length() > 0:
 			serving_path = path + "/" + index_page
@@ -81,7 +83,7 @@ func _handle_get(request: HttpRequest, response: HttpResponse) -> bool:
 		var weekday = weekdays[time.weekday]
 		var monthname = monthnames[time.month]
 		var timestamp = '%s, %02d %s %04d %02d:%02d:%02d GMT' % [weekday, time.day, monthname, time.year, time.hour, time.minute, time.second]
-		
+
 		if request.headers.get('If-Modified-Since') == timestamp:
 			response.send_raw(304, ''.to_ascii_buffer(), _get_mime(serving_path.get_extension()))
 			return true
@@ -98,14 +100,14 @@ func _handle_get(request: HttpRequest, response: HttpResponse) -> bool:
 						206,
 						_serve_file(serving_path, start),
 						_get_mime(serving_path.get_extension()),
-						"Cache-Control: no-cache\r\nLast-Modified: %s\r\nContent-Range: bytes %s-%s/%s\n\rContent-Length: %s\r\n" % [timestamp, start, size-1, size, filesize]
+						"Cache-Control: no-cache\r\nLast-Modified: %s\r\nContent-Range: bytes %s-%s/%s\n\rContent-Length: %s\r\n" % [timestamp, start, size - 1, size, filesize],
 					)
 			else:
 				response.send_raw(
 					200,
 					_serve_file(serving_path),
 					_get_mime(serving_path.get_extension()),
-					"Cache-Control: no-cache\r\nLast-Modified: %s\r\nContent-Length: %s\r\n" % [timestamp, filesize]
+					"Cache-Control: no-cache\r\nLast-Modified: %s\r\nContent-Length: %s\r\n" % [timestamp, filesize],
 				)
 			return true
 	elif self.listfiles and serving_dir.ends_with('/') and DirAccess.dir_exists_absolute(localpath + serving_dir):
@@ -127,8 +129,9 @@ func _handle_get(request: HttpRequest, response: HttpResponse) -> bool:
 			response.send_raw(200 if index_page == fallback_page else 404, _serve_file(serving_path), _get_mime(fallback_page.get_extension()))
 			return true
 		#else:
-			#response.send_raw(404)
+		#response.send_raw(404)
 	return false
+
 
 # Reads a file as text
 #
@@ -147,6 +150,7 @@ func _serve_file(file_path: String, seek: int = -1) -> PackedByteArray:
 	file.close()
 	return content
 
+
 # Check if a file exists
 #
 # #### Parameters
@@ -154,28 +158,29 @@ func _serve_file(file_path: String, seek: int = -1) -> PackedByteArray:
 func _file_exists(file_path: String) -> bool:
 	return FileAccess.file_exists(localpath + file_path)
 
+
 # Get the full MIME type of a file from its extension
 #
 # #### Parameters
 # - file_extension: Extension of the file to be served
 func _get_mime(file_extension: String) -> String:
 	var type: String = "application"
-	var subtype : String = "octet-stream"
+	var subtype: String = "octet-stream"
 	match file_extension:
 		# Web files
-		"css","html","csv","js","mjs":
+		"css", "html", "csv", "js", "mjs":
 			type = "text"
-			subtype = "javascript" if file_extension in ["js","mjs"] else file_extension
+			subtype = "javascript" if file_extension in ["js", "mjs"] else file_extension
 		"php":
 			subtype = "x-httpd-php"
-		"ttf","woff","woff2":
+		"ttf", "woff", "woff2":
 			type = "font"
 			subtype = file_extension
 		# Image
-		"png","bmp","gif","png","webp":
+		"png", "bmp", "gif", "png", "webp":
 			type = "image"
 			subtype = file_extension
-		"jpeg","jpg":
+		"jpeg", "jpg":
 			type = "image"
 			subtype = "jpg"
 		"tiff", "tif":
@@ -198,7 +203,7 @@ func _get_mime(file_extension: String) -> String:
 			subtype = "gzip"
 		"tar":
 			subtype = "application/x-tar"
-		"json","pdf","zip":
+		"json", "pdf", "zip":
 			subtype = file_extension
 		"txt":
 			type = "text"
@@ -206,13 +211,13 @@ func _get_mime(file_extension: String) -> String:
 		"ppt":
 			subtype = "vnd.ms-powerpoint"
 		# Audio
-		"midi","mp3","wav":
+		"midi", "mp3", "wav":
 			type = "audio"
 			subtype = file_extension
-		"mp4","mpeg","webm":
+		"mp4", "mpeg", "webm":
 			type = "audio"
 			subtype = file_extension
-		"oga","ogg":
+		"oga", "ogg":
 			type = "audio"
 			subtype = "ogg"
 		"mpkg":

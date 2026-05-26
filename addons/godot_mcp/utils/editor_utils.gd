@@ -36,12 +36,13 @@ static func find_scene_tree_editor_tree(editor_interface, scene_root_name: Strin
 
 	return scene_tree if scene_tree else fallback_tree
 
+
 static func collect_scene_tree_warning_entries(tree: Tree, scene_root_name: String) -> Dictionary:
 	var result := {
 		"warnings": [],
 		"items_scanned": 0,
 		"buttons_scanned": 0,
-		"tree_path": String(tree.get_path()) if tree.is_inside_tree() else ""
+		"tree_path": String(tree.get_path()) if tree.is_inside_tree() else "",
 	}
 
 	if not is_instance_valid(tree):
@@ -52,6 +53,7 @@ static func collect_scene_tree_warning_entries(tree: Tree, scene_root_name: Stri
 		_collect_scene_tree_warning_entries_for_item(tree, root, result, scene_root_name)
 
 	return result
+
 
 static func _tree_has_scene_root(root: TreeItem, scene_root_name: String) -> bool:
 	var items: Array = [root]
@@ -71,6 +73,7 @@ static func _tree_has_scene_root(root: TreeItem, scene_root_name: String) -> boo
 			child_item = child_item.get_next()
 
 	return false
+
 
 static func _collect_scene_tree_warning_entries_for_item(tree: Tree, item: TreeItem, result: Dictionary, scene_root_name: String) -> void:
 	if not is_instance_valid(item):
@@ -115,11 +118,13 @@ static func _collect_scene_tree_warning_entries_for_item(tree: Tree, item: TreeI
 				existing_entry["warning"] = existing_warning + "\n\n" + warning_text
 			warnings[existing_index] = existing_entry
 		else:
-			warnings.append({
-				"name": item_name,
-				"path": item_path,
-				"warning": warning_text
-			})
+			warnings.append(
+				{
+					"name": item_name,
+					"path": item_path,
+					"warning": warning_text,
+				},
+			)
 
 		result["warnings"] = warnings
 
@@ -127,6 +132,7 @@ static func _collect_scene_tree_warning_entries_for_item(tree: Tree, item: TreeI
 	while child:
 		_collect_scene_tree_warning_entries_for_item(tree, child, result, scene_root_name)
 		child = child.get_next()
+
 
 static func _normalize_scene_tree_path(metadata_value, scene_root_name: String) -> String:
 	var metadata := String(metadata_value)

@@ -2,7 +2,6 @@
 class_name HttpRequest
 extends RefCounted
 
-
 ## A dictionary of the headers of the request
 var headers: Dictionary
 
@@ -24,20 +23,21 @@ var parameters: Dictionary
 ## A dictionary of request query parameters
 var query: Dictionary
 
+
 ## Returns the body object based on the raw body and the content type of the request
 func get_body_parsed() -> Variant:
 	var content_type: String = ""
 
-	if(headers.has("content-type")):
+	if (headers.has("content-type")):
 		content_type = headers["content-type"]
-	elif(headers.has("Content-Type")):
+	elif (headers.has("Content-Type")):
 		content_type = headers["Content-Type"]
 
-	if(content_type == "application/json"):
+	if (content_type == "application/json"):
 		return JSON.parse_string(body)
 
-	if(content_type == "application/x-www-form-urlencoded"):
-		var data = {}
+	if (content_type == "application/x-www-form-urlencoded"):
+		var data = { }
 
 		for body_part in body.split("&"):
 			var key_and_value = body_part.split("=")
@@ -48,17 +48,19 @@ func get_body_parsed() -> Variant:
 	# Not supported contenty type parsing... for now
 	return null
 
+
 ## Override `str()` method, automatically called in `print()` function
 func _to_string() -> String:
-	return JSON.stringify({headers=headers, method=method, path=path})
+	return JSON.stringify({ headers = headers, method = method, path = path })
 
 
 ## Get cookies as dictionary
 func get_cookies() -> Dictionary[String, String]:
 	var cookie_string: String = headers.get('Cookie', headers.get('cookie', ''))
-	
-	if cookie_string == '': return {}
-	var cookies: Dictionary[String, String] = {}
+
+	if cookie_string == '':
+		return { }
+	var cookies: Dictionary[String, String] = { }
 	for cookie: String in headers.Cookie.split(';'):
 		var pair: PackedStringArray = cookie.split('=', true, 1)
 		cookies[pair[0].strip_edges()] = pair[1].strip_edges()

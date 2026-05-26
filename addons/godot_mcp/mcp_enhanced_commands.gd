@@ -44,6 +44,7 @@ func process_command(client_id: int, command_type: String, params: Dictionary, c
 	# Command not handled by this processor
 	return false
 
+
 # Helper function to get EditorInterface
 func _get_editor_interface():
 	var plugin_instance = Engine.get_meta("GodotMCPPlugin") as EditorPlugin
@@ -51,10 +52,12 @@ func _get_editor_interface():
 		return plugin_instance.get_editor_interface()
 	return null
 
+
 func _get_runtime_bridge() -> MCPRuntimeDebuggerBridge:
 	if Engine.has_meta("MCPRuntimeDebuggerBridge"):
 		return Engine.get_meta("MCPRuntimeDebuggerBridge") as MCPRuntimeDebuggerBridge
 	return null
+
 
 func _get_debugger_bridge() -> MCPDebuggerBridge:
 	if Engine.has_meta("MCPDebuggerBridge"):
@@ -69,17 +72,19 @@ func _get_debugger_bridge() -> MCPDebuggerBridge:
 
 # ---- Scene Structure Commands ----
 
+
 func _handle_get_editor_scene_structure(client_id: int, params: Dictionary, command_id: String) -> void:
 	var options = _build_scene_options(params, false, false)
 	var result = _build_scene_structure_result(options)
 	_send_success(client_id, result, command_id)
+
 
 func _handle_get_runtime_scene_structure(client_id: int, params: Dictionary, command_id: String) -> void:
 	var runtime_bridge := _get_runtime_bridge()
 	if runtime_bridge == null:
 		_send_success(client_id, { "error": "Runtime debugger bridge not available. Ensure the project is running." }, command_id)
 		return
-	
+
 	var options = _build_scene_options(params, false, false)
 	var timeout_ms = params.get("timeout_ms", MCPRuntimeDebuggerBridge.DEFAULT_TIMEOUT_MS)
 	timeout_ms = int(timeout_ms)
@@ -87,7 +92,7 @@ func _handle_get_runtime_scene_structure(client_id: int, params: Dictionary, com
 		timeout_ms = 100
 	elif timeout_ms > 5000:
 		timeout_ms = 5000
-	
+
 	var request_info = runtime_bridge.request_runtime_scene_snapshot()
 	if request_info.has("error"):
 		_send_success(client_id, request_info, command_id)
@@ -101,30 +106,35 @@ func _handle_get_runtime_scene_structure(client_id: int, params: Dictionary, com
 		return
 
 	var deadline: int = Time.get_ticks_msec() + timeout_ms
-	var snapshot: Dictionary = {}
+	var snapshot: Dictionary = { }
 
 	while Time.get_ticks_msec() <= deadline:
 		if runtime_bridge.has_new_runtime_snapshot(session_id, baseline_version):
 			snapshot = runtime_bridge.build_runtime_snapshot(session_id, options)
 			if not snapshot.is_empty():
 				break
-		
+
 		await scene_tree.process_frame
 
 	if snapshot.is_empty():
 		snapshot = {
 			"error": "Timed out waiting for runtime scene data.",
-			"hint": "Ensure the remote debugger supports scene tree capture; try opening the Remote Scene tab in Godot or enabling EngineDebugger.set_capture('scene', true) inside the running project."
+			"hint": "Ensure the remote debugger supports scene tree capture; try opening the Remote Scene tab in Godot or enabling EngineDebugger.set_capture('scene', true) inside the running project.",
 		}
 
 	_send_success(client_id, snapshot, command_id)
 
+
 func _handle_evaluate_runtime(client_id: int, params: Dictionary, command_id: String) -> void:
 	var runtime_bridge := _get_runtime_bridge()
 	if runtime_bridge == null:
-		_send_success(client_id, {
-			"error": "Runtime debugger bridge not available. Ensure the project is running."
-		}, command_id)
+		_send_success(
+			client_id,
+			{
+				"error": "Runtime debugger bridge not available. Ensure the project is running.",
+			},
+			command_id,
+		)
 		return
 
 	var expression := ""
@@ -137,7 +147,7 @@ func _handle_evaluate_runtime(client_id: int, params: Dictionary, command_id: St
 		_send_error(client_id, "Expression cannot be empty", command_id)
 		return
 
-	var options: Dictionary = {}
+	var options: Dictionary = { }
 	if params.has("context_path"):
 		options["node_path"] = str(params.get("context_path"))
 	elif params.has("node_path"):
@@ -169,7 +179,7 @@ func _handle_evaluate_runtime(client_id: int, params: Dictionary, command_id: St
 		return
 
 	var deadline: int = Time.get_ticks_msec() + timeout_ms
-	var response: Dictionary = {}
+	var response: Dictionary = { }
 
 	while Time.get_ticks_msec() <= deadline:
 		if runtime_bridge.has_eval_result(session_id, request_id):
@@ -180,58 +190,61 @@ func _handle_evaluate_runtime(client_id: int, params: Dictionary, command_id: St
 	if response.is_empty():
 		response = {
 			"error": "Timed out waiting for runtime evaluation result.",
-			"hint": "Ensure the running project registers the mcp_eval debugger capture via EngineDebugger.register_message_capture."
+			"hint": "Ensure the running project registers the mcp_eval debugger capture via EngineDebugger.register_message_capture.",
 		}
 	elif not response.get("success", true) and not response.has("error"):
 		response["error"] = "Runtime evaluation failed."
 
 	_send_success(client_id, response, command_id)
 
+
 func _build_scene_structure_result(options: Dictionary) -> Dictionary:
 	var editor_interface = _get_editor_interface()
 	if not editor_interface:
 		return { "error": "Could not access EditorInterface" }
-	
+
 	var root = editor_interface.get_edited_scene_root()
 	if not root:
 		return { "error": "No scene is currently being edited" }
-	
+
 	var scene_path = ""
-	
+
 	if "scene_file_path" in root:
 		scene_path = root.scene_file_path
 		if typeof(scene_path) != TYPE_STRING:
 			scene_path = str(scene_path)
-	
+
 	if scene_path.is_empty():
 		scene_path = "Unsaved Scene"
-	
+
 	return {
 		"scene_path": scene_path,
 		"path": scene_path,
 		"root_node_type": root.get_class(),
 		"root_node_name": root.name,
-		"structure": _build_node_info(root, options, 0)
+		"structure": _build_node_info(root, options, 0),
 	}
+
 
 func _build_scene_options(params: Dictionary, include_properties_default: bool, include_scripts_default: bool) -> Dictionary:
 	var include_properties = include_properties_default
 	if params.has("include_properties"):
 		include_properties = _coerce_bool(params.get("include_properties"), include_properties_default)
-	
+
 	var include_scripts = include_scripts_default
 	if params.has("include_scripts"):
 		include_scripts = _coerce_bool(params.get("include_scripts"), include_scripts_default)
-	
+
 	var max_depth = -1
 	if params.has("max_depth"):
 		max_depth = int(params.get("max_depth"))
-	
+
 	return {
 		"include_properties": include_properties,
 		"include_scripts": include_scripts,
-		"max_depth": max_depth
+		"max_depth": max_depth,
 	}
+
 
 func _coerce_bool(value, default: bool) -> bool:
 	if typeof(value) == TYPE_BOOL:
@@ -244,16 +257,17 @@ func _coerce_bool(value, default: bool) -> bool:
 			return false
 	return bool(value) if value != null else default
 
+
 func _build_node_info(node: Node, options: Dictionary, depth: int) -> Dictionary:
 	var info = {
 		"name": node.name,
 		"type": node.get_class(),
 		"path": node.get_path(),
-		"children": []
+		"children": [],
 	}
-	
+
 	if options.get("include_properties", false):
-		var properties = {}
+		var properties = { }
 		if node.has_method("get_property_list"):
 			var props = node.get_property_list()
 			for prop in props:
@@ -262,53 +276,56 @@ func _build_node_info(node: Node, options: Dictionary, depth: int) -> Dictionary
 						properties[prop.name] = node.get(prop.name)
 		if properties.size() > 0:
 			info["properties"] = properties
-	
+
 	if options.get("include_scripts", false):
 		var script = node.get_script()
 		if script:
 			var script_path = ""
 			var class_name_str = ""
-			
+
 			if typeof(script) == TYPE_OBJECT:
 				if script.has_method("get_path") or "resource_path" in script:
 					script_path = script.resource_path if "resource_path" in script else ""
-				
+
 				if script.has_method("get_instance_base_type"):
 					class_name_str = script.get_instance_base_type()
-			
+
 			info["script"] = {
 				"path": script_path,
-				"class_name": class_name_str
+				"class_name": class_name_str,
 			}
-	
+
 	var max_depth = options.get("max_depth", -1)
 	if max_depth >= 0 and depth >= max_depth:
 		return info
-	
+
 	for child in node.get_children():
 		info["children"].append(_build_node_info(child, options, depth + 1))
-	
+
 	return info
 
 # ---- Debug Output Commands ----
 
+
 func _handle_get_debug_output(client_id: int, _params: Dictionary, command_id: String) -> void:
 	var result = get_debug_output()
-	
+
 	_send_success(client_id, result, command_id)
+
 
 func _handle_get_editor_errors(client_id: int, _params: Dictionary, command_id: String) -> void:
 	var snapshot := _capture_editor_errors_snapshot()
-	var diagnostics := snapshot.get("diagnostics", {})
+	var diagnostics := snapshot.get("diagnostics", { })
 	if diagnostics.has("error"):
 		_send_error(client_id, "Failed to read Errors tab: %s" % diagnostics["error"], command_id)
 		return
 	_send_success(client_id, snapshot, command_id)
 
+
 func get_debug_output() -> Dictionary:
 	var output := ""
 	var publisher := _get_debug_output_publisher()
-	var diagnostics: Dictionary = {}
+	var diagnostics: Dictionary = { }
 	if publisher:
 		output = publisher.get_full_log_text()
 
@@ -334,13 +351,14 @@ func get_debug_output() -> Dictionary:
 		diagnostics = {
 			"source": source,
 			"detail": detail,
-			"timestamp": Time.get_ticks_msec()
+			"timestamp": Time.get_ticks_msec(),
 		}
-	
+
 	return {
 		"output": output,
-		"diagnostics": diagnostics
+		"diagnostics": diagnostics,
 	}
+
 
 func _handle_subscribe_debug_output(client_id: int, command_id: String) -> void:
 	var publisher := _get_debug_output_publisher()
@@ -349,10 +367,15 @@ func _handle_subscribe_debug_output(client_id: int, command_id: String) -> void:
 		return
 
 	publisher.subscribe(client_id)
-	_send_success(client_id, {
-		"subscribed": true,
-		"message": "Live debug output streaming enabled. Future log frames will be delivered asynchronously."
-	}, command_id)
+	_send_success(
+		client_id,
+		{
+			"subscribed": true,
+			"message": "Live debug output streaming enabled. Future log frames will be delivered asynchronously.",
+		},
+		command_id,
+	)
+
 
 func _handle_unsubscribe_debug_output(client_id: int, command_id: String) -> void:
 	var publisher := _get_debug_output_publisher()
@@ -361,10 +384,15 @@ func _handle_unsubscribe_debug_output(client_id: int, command_id: String) -> voi
 		return
 
 	publisher.unsubscribe(client_id)
-	_send_success(client_id, {
-		"subscribed": false,
-		"message": "Live debug output streaming disabled for this client."
-	}, command_id)
+	_send_success(
+		client_id,
+		{
+			"subscribed": false,
+			"message": "Live debug output streaming disabled for this client.",
+		},
+		command_id,
+	)
+
 
 func _handle_get_stack_trace_panel(client_id: int, params: Dictionary, command_id: String) -> void:
 	var publisher := _get_debug_output_publisher()
@@ -375,20 +403,20 @@ func _handle_get_stack_trace_panel(client_id: int, params: Dictionary, command_i
 		"frames": [],
 		"diagnostics": {
 			"error": "debug_output_publisher_unavailable",
-			"timestamp": Time.get_ticks_msec()
-		}
+			"timestamp": Time.get_ticks_msec(),
+		},
 	}
 
 	if publisher and publisher.has_method("get_stack_trace_snapshot"):
 		var snapshot_session := int(params.get("session_id", -1))
 		snapshot = publisher.get_stack_trace_snapshot(snapshot_session)
 
-	var snapshot_diagnostics := snapshot.get("diagnostics", {})
+	var snapshot_diagnostics := snapshot.get("diagnostics", { })
 	if typeof(snapshot_diagnostics) != TYPE_DICTIONARY:
-		snapshot_diagnostics = {}
+		snapshot_diagnostics = { }
 		snapshot["diagnostics"] = snapshot_diagnostics
 
-	var debugger_state := {}
+	var debugger_state := { }
 	var requested_session := int(params.get("session_id", -1))
 	var resolved_session_id := requested_session
 	var debugger_error := ""
@@ -432,13 +460,14 @@ func _handle_get_stack_trace_panel(client_id: int, params: Dictionary, command_i
 		"stack_trace_panel": snapshot,
 		"session_id": resolved_session_id,
 		"debugger_state": debugger_state,
-		"timestamp": Time.get_ticks_msec()
+		"timestamp": Time.get_ticks_msec(),
 	}
 
 	if not debugger_error.is_empty():
 		response["call_stack_error"] = debugger_error
 
 	_send_success(client_id, response, command_id)
+
 
 func _handle_get_stack_frames_panel(client_id: int, params: Dictionary, command_id: String) -> void:
 	var publisher := _get_debug_output_publisher()
@@ -449,20 +478,20 @@ func _handle_get_stack_frames_panel(client_id: int, params: Dictionary, command_
 		"frames": [],
 		"diagnostics": {
 			"error": "debug_output_publisher_unavailable",
-			"timestamp": Time.get_ticks_msec()
-		}
+			"timestamp": Time.get_ticks_msec(),
+		},
 	}
 
 	if publisher and publisher.has_method("get_stack_frames_snapshot"):
 		var snapshot_session := int(params.get("session_id", -1))
 		snapshot = publisher.get_stack_frames_snapshot(snapshot_session)
 
-	var snapshot_diagnostics := snapshot.get("diagnostics", {})
+	var snapshot_diagnostics := snapshot.get("diagnostics", { })
 	if typeof(snapshot_diagnostics) != TYPE_DICTIONARY:
-		snapshot_diagnostics = {}
+		snapshot_diagnostics = { }
 		snapshot["diagnostics"] = snapshot_diagnostics
 
-	var debugger_state := {}
+	var debugger_state := { }
 	var requested_session := int(params.get("session_id", -1))
 	var resolved_session_id := requested_session
 	var debugger_error := ""
@@ -530,7 +559,7 @@ func _handle_get_stack_frames_panel(client_id: int, params: Dictionary, command_
 		"stack_frames_panel": snapshot,
 		"session_id": resolved_session_id,
 		"debugger_state": debugger_state,
-		"timestamp": Time.get_ticks_msec()
+		"timestamp": Time.get_ticks_msec(),
 	}
 
 	if not debugger_error.is_empty():
@@ -538,10 +567,11 @@ func _handle_get_stack_frames_panel(client_id: int, params: Dictionary, command_
 
 	_send_success(client_id, response, command_id)
 
+
 func _fetch_debugger_stack_frames(debugger_bridge: MCPDebuggerBridge, session_id: int, refresh_requested: bool) -> Dictionary:
 	if debugger_bridge == null or session_id < 0:
-		return {}
-	var result := {}
+		return { }
+	var result := { }
 	if refresh_requested:
 		result = await debugger_bridge.get_call_stack(session_id)
 		if typeof(result) == TYPE_DICTIONARY and result.get("frames", []).size() > 0:
@@ -562,6 +592,7 @@ func _fetch_debugger_stack_frames(debugger_bridge: MCPDebuggerBridge, session_id
 
 	return result
 
+
 func _frames_need_enrichment(frames: Array) -> bool:
 	if frames.is_empty():
 		return false
@@ -580,6 +611,7 @@ func _frames_need_enrichment(frames: Array) -> bool:
 			return true
 	return false
 
+
 func _handle_clear_debug_output(client_id: int, command_id: String) -> void:
 	var publisher := _get_debug_output_publisher()
 	if publisher == null or not publisher.has_method("clear_log_output"):
@@ -594,6 +626,7 @@ func _handle_clear_debug_output(client_id: int, command_id: String) -> void:
 			result["message"] = "Debug Output panel could not be cleared automatically."
 
 	_send_success(client_id, result, command_id)
+
 
 func _handle_clear_editor_errors(client_id: int, command_id: String) -> void:
 	var publisher := _get_debug_output_publisher()
@@ -610,6 +643,7 @@ func _handle_clear_editor_errors(client_id: int, command_id: String) -> void:
 
 	_send_success(client_id, result, command_id)
 
+
 func _get_debug_output_publisher() -> MCPDebugOutputPublisher:
 	if Engine.has_meta("MCPDebugOutputPublisher"):
 		var publisher = Engine.get_meta("MCPDebugOutputPublisher")
@@ -617,13 +651,14 @@ func _get_debug_output_publisher() -> MCPDebugOutputPublisher:
 			return publisher
 	return null
 
+
 func _capture_editor_errors_snapshot() -> Dictionary:
 	var publisher := _get_debug_output_publisher()
 	if publisher and publisher.has_method("get_errors_panel_snapshot"):
 		return publisher.get_errors_panel_snapshot()
 
 	var diagnostics := {
-		"timestamp": Time.get_ticks_msec()
+		"timestamp": Time.get_ticks_msec(),
 	}
 
 	if not Engine.is_editor_hint():
@@ -632,7 +667,7 @@ func _capture_editor_errors_snapshot() -> Dictionary:
 			"text": "",
 			"lines": [],
 			"line_count": 0,
-			"diagnostics": diagnostics
+			"diagnostics": diagnostics,
 		}
 
 	var search_roots: Array = []
@@ -659,7 +694,7 @@ func _capture_editor_errors_snapshot() -> Dictionary:
 			search_roots.append(tree_root)
 
 	var aggregated_summary: Array = []
-	var tab_info := {}
+	var tab_info := { }
 	for root in search_roots:
 		tab_info = _find_errors_tab_in_editor_log(root)
 		var summary := String(tab_info.get("summary", ""))
@@ -678,7 +713,7 @@ func _capture_editor_errors_snapshot() -> Dictionary:
 			"text": "",
 			"lines": [],
 			"line_count": 0,
-			"diagnostics": diagnostics
+			"diagnostics": diagnostics,
 		}
 
 	var tab_control: Control = tab_info.get("control")
@@ -688,7 +723,7 @@ func _capture_editor_errors_snapshot() -> Dictionary:
 			"text": "",
 			"lines": [],
 			"line_count": 0,
-			"diagnostics": diagnostics
+			"diagnostics": diagnostics,
 		}
 
 	diagnostics["tab_title"] = tab_info.get("tab_title", "")
@@ -714,8 +749,9 @@ func _capture_editor_errors_snapshot() -> Dictionary:
 		"text": text,
 		"lines": lines,
 		"line_count": lines.size(),
-		"diagnostics": diagnostics
+		"diagnostics": diagnostics,
 	}
+
 
 func _find_errors_tab_in_editor_log(root: Node) -> Dictionary:
 	var queue: Array = []
@@ -723,7 +759,7 @@ func _find_errors_tab_in_editor_log(root: Node) -> Dictionary:
 	if is_instance_valid(root):
 		queue.append(root)
 	else:
-		return {}
+		return { }
 
 	var visited := 0
 	while queue.size() > 0:
@@ -756,13 +792,14 @@ func _find_errors_tab_in_editor_log(root: Node) -> Dictionary:
 						return {
 							"control": tab_control,
 							"tab_title": title,
-							"summary": "; ".join(summary)
+							"summary": "; ".join(summary),
 						}
 		for child in candidate.get_children():
 			if child is Node:
 				queue.append(child)
 
-	return {"summary": "; ".join(summary)}
+	return { "summary": "; ".join(summary) }
+
 
 func _unwrap_single_child_control(control: Control) -> Control:
 	if not is_instance_valid(control):
@@ -785,6 +822,7 @@ func _unwrap_single_child_control(control: Control) -> Control:
 
 	return current
 
+
 func _locate_descendant_tree(root: Node, max_nodes: int = 8192) -> Tree:
 	if not is_instance_valid(root):
 		return null
@@ -802,6 +840,7 @@ func _locate_descendant_tree(root: Node, max_nodes: int = 8192) -> Tree:
 				queue.append(child)
 	return null
 
+
 func _collect_tree_lines(tree: Tree) -> Array:
 	var lines: Array = []
 	if not is_instance_valid(tree):
@@ -815,6 +854,7 @@ func _collect_tree_lines(tree: Tree) -> Array:
 		_collect_tree_item_lines(item, lines, 0, column_count)
 		item = item.get_next()
 	return lines
+
 
 func _collect_tree_item_lines(item: TreeItem, lines: Array, depth: int, column_count: int) -> void:
 	if not is_instance_valid(item):
@@ -844,10 +884,12 @@ func _collect_tree_item_lines(item: TreeItem, lines: Array, depth: int, column_c
 		_collect_tree_item_lines(child, lines, depth + 1, column_count)
 		child = child.get_next()
 
+
 func _is_text_display_control_local(control: Control) -> bool:
 	if not is_instance_valid(control):
 		return false
 	return control.is_class("TextEdit") or control.is_class("CodeEdit") or control.is_class("RichTextLabel")
+
 
 func _extract_text_from_control_local(control: Object) -> String:
 	if not is_instance_valid(control):
@@ -867,6 +909,7 @@ func _extract_text_from_control_local(control: Object) -> String:
 		return "\n".join(lines)
 	return ""
 
+
 func _make_indent_local(depth: int) -> String:
 	if depth <= 0:
 		return ""
@@ -878,59 +921,62 @@ func _make_indent_local(depth: int) -> String:
 
 # ---- Node Transform Commands ----
 
+
 func _handle_update_node_transform(client_id: int, params: Dictionary, command_id: String) -> void:
 	var node_path = params.get("node_path", "")
 	var position = params.get("position", null)
 	var rotation = params.get("rotation", null)
 	var scale = params.get("scale", null)
-	
+
 	var result = update_node_transform(node_path, position, rotation, scale)
-	
+
 	_send_success(client_id, result, command_id)
+
 
 func update_node_transform(node_path: String, position, rotation, scale) -> Dictionary:
 	var editor_interface = _get_editor_interface()
-	
+
 	if not editor_interface:
 		return { "error": "Could not access EditorInterface" }
-	
+
 	var scene_root = editor_interface.get_edited_scene_root()
-	
+
 	if not scene_root:
 		return { "error": "No scene open" }
-	
+
 	var node = scene_root.get_node_or_null(node_path)
 	if not node:
 		return { "error": "Node not found" }
-	
+
 	# Update all specified properties
 	if position != null and node.has_method("set_position"):
 		if position is Array and position.size() >= 2:
 			node.set_position(Vector2(position[0], position[1]))
 		elif typeof(position) == TYPE_DICTIONARY and "x" in position and "y" in position:
 			node.set_position(Vector2(position.x, position.y))
-	
+
 	if rotation != null and node.has_method("set_rotation"):
 		node.set_rotation(rotation)
-	
+
 	if scale != null and node.has_method("set_scale"):
 		if scale is Array and scale.size() >= 2:
 			node.set_scale(Vector2(scale[0], scale[1]))
 		elif typeof(scale) == TYPE_DICTIONARY and "x" in scale and "y" in scale:
 			node.set_scale(Vector2(scale.x, scale.y))
-	
+
 	# Mark the scene as modified
 	editor_interface.mark_scene_as_unsaved()
-	
+
 	return {
 		"success": true,
 		"node_path": node_path,
 		"updated": {
 			"position": position != null,
 			"rotation": rotation != null,
-			"scale": scale != null
-		}
+			"scale": scale != null,
+		},
 	}
+
 
 func _format_frames_as_lines(frames: Array) -> Array:
 	var lines: Array = []
@@ -966,16 +1012,18 @@ func _format_frames_as_lines(frames: Array) -> Array:
 		lines.append("#%d %s — %s" % [index, fn_display, location])
 	return lines
 
+
 func _build_frames_from_debug_output() -> Dictionary:
 	var frames := _parse_frames_from_debug_output()
 	if frames.is_empty():
-		return {}
+		return { }
 	return {
 		"frames": frames,
 		"total_frames": frames.size(),
 		"current_frame": 0,
-		"source": "debug_output"
+		"source": "debug_output",
 	}
+
 
 func _parse_frames_from_debug_output() -> Array:
 	var publisher := _get_debug_output_publisher()
@@ -1003,13 +1051,14 @@ func _parse_frames_from_debug_output() -> Array:
 			frames.append(frame_dict)
 	return frames
 
+
 func _parse_print_stack_line(line: String) -> Dictionary:
 	var trimmed := line.strip_edges()
 	if not trimmed.begins_with("Frame "):
-		return {}
+		return { }
 	var dash_index := trimmed.find(" - ")
 	if dash_index == -1:
-		return {}
+		return { }
 	var index_text := trimmed.substr(6, dash_index - 6).strip_edges()
 	var index_value := 0
 	if index_text.is_valid_int():
@@ -1039,8 +1088,9 @@ func _parse_print_stack_line(line: String) -> Dictionary:
 		"script": script_path,
 		"file": script_path,
 		"line": line_number,
-		"location": location
+		"location": location,
 	}
+
 
 func _format_stack_frames_panel_lines(frames: Array) -> Array:
 	var lines: Array = []

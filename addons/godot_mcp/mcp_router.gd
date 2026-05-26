@@ -16,15 +16,18 @@ var _core: MCPServerCore = null
 func _init(path: String, sse: MCPSse, core: MCPServerCore):
 	_sse = sse
 	_core = core
-	
+
 	# Register event connections
 	if _core:
 		_core.sse_notification.connect(_on_sse_notification)
-	
-	super(path, {
-		"get": _on_get,
-		"post": _on_post,
-	})
+
+	super(
+		path,
+		{
+			"get": _on_get,
+			"post": _on_post,
+		},
+	)
 
 
 ## Handle GET /mcp
@@ -34,17 +37,20 @@ func _on_get(request: HttpRequest, response: HttpResponse) -> bool:
 		accept = request.headers["Accept"]
 	elif request.headers.has("accept"):
 		accept = request.headers["accept"]
-	
+
 	# Check for SSE request
 	if "text/event-stream" in accept:
 		return _handle_sse(request, response)
-	
+
 	# Default: health check
-	response.json(200, {
-		"status": "ok",
-		"server": "godot-mcp",
-		"transport": "sse+http",
-	})
+	response.json(
+		200,
+		{
+			"status": "ok",
+			"server": "godot-mcp",
+			"transport": "sse+http",
+		},
+	)
 	return true
 
 
@@ -53,22 +59,25 @@ func _on_post(request: HttpRequest, response: HttpResponse) -> bool:
 	# Parse the JSON body
 	var body := request.get_body_parsed()
 	if body == null or typeof(body) != TYPE_DICTIONARY:
-		response.json(400, MCPTypes.make_error_response(
-			null,
-			MCPTypes.ErrorCode.PARSE_ERROR,
-			"Invalid JSON-RPC request body"
-		))
+		response.json(
+			400,
+			MCPTypes.make_error_response(
+				null,
+				MCPTypes.ErrorCode.PARSE_ERROR,
+				"Invalid JSON-RPC request body",
+			),
+		)
 		return true
-	
+
 	# Delegate to core
 	var result := _core.handle_mcp_request(body)
-	
+
 	if result != null:
 		response.json(200, result)
 	else:
 		# Notification (no response expected) — return 202 Accepted
 		response.send(202, "", "text/plain")
-	
+
 	return true
 
 
@@ -80,7 +89,7 @@ func _handle_sse(request: HttpRequest, response: HttpResponse) -> bool:
 	if not stream:
 		response.send(500, "Internal error: no client stream")
 		return true
-	
+
 	# Write SSE response headers directly to the stream
 	# We use send_raw to avoid Connection: close from standard send()
 	var headers := PackedByteArray()
@@ -90,15 +99,15 @@ func _handle_sse(request: HttpRequest, response: HttpResponse) -> bool:
 	headers += "Connection: keep-alive\r\n".to_utf8_buffer()
 	headers += "Access-Control-Allow-Origin: *\r\n".to_utf8_buffer()
 	headers += "\r\n".to_utf8_buffer()
-	
+
 	var err := stream.put_data(headers)
 	if err != OK:
 		response.send(500, "Failed to write SSE headers")
 		return true
-	
+
 	# Register with SSE manager
 	var client_id := _sse.register_client(stream)
-	
+
 	# Signal to the server to NOT close this connection
 	# (HttpServer would normally close it after send())
 	# We handle the SSE lifecycle entirely in MCPSse

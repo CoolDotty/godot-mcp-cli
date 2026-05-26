@@ -10,6 +10,7 @@ var stop_button: Button
 var connection_count_label: Label
 var log_text: TextEdit
 
+
 func _ready():
 	status_label = $VBoxContainer/StatusContainer/StatusLabel
 	port_input = $VBoxContainer/PortContainer/PortSpinBox
@@ -17,19 +18,20 @@ func _ready():
 	stop_button = $VBoxContainer/ButtonsContainer/StopButton
 	connection_count_label = $VBoxContainer/ConnectionsContainer/CountLabel
 	log_text = $VBoxContainer/LogContainer/LogText
-	
+
 	start_button.pressed.connect(_on_start_button_pressed)
 	stop_button.pressed.connect(_on_stop_button_pressed)
 	port_input.value_changed.connect(_on_port_changed)
-	
+
 	# Initial UI setup
 	_update_ui()
-	
+
 	# Setup server signals once it's available
 	await get_tree().process_frame
 	if http_server and http_server._server:
 		# The HttpServer uses _server (TCPServer) internally
 		_log_message("Server configured on port %d" % http_server.port)
+
 
 func _update_ui():
 	if not http_server:
@@ -39,14 +41,14 @@ func _update_ui():
 		port_input.editable = true
 		connection_count_label.text = "0"
 		return
-	
+
 	var is_active = http_server._server and http_server._server.is_listening()
-	
+
 	status_label.text = "Server: " + ("Running" if is_active else "Stopped")
 	start_button.disabled = is_active
 	stop_button.disabled = not is_active
 	port_input.editable = not is_active
-	
+
 	if is_active:
 		var count = 0
 		if mcp_sse:
@@ -55,6 +57,7 @@ func _update_ui():
 	else:
 		connection_count_label.text = "0"
 
+
 func _on_start_button_pressed():
 	if http_server:
 		http_server.port = int(port_input.value)
@@ -62,14 +65,17 @@ func _on_start_button_pressed():
 		_log_message("Server started on port " + str(http_server.port))
 		_update_ui()
 
+
 func _on_stop_button_pressed():
 	if http_server:
 		http_server.stop()
 		_log_message("Server stopped")
 		_update_ui()
 
+
 func _on_port_changed(new_port: float):
 	_log_message("Port changed to " + str(int(new_port)))
+
 
 func _log_message(message: String):
 	var timestamp = Time.get_datetime_string_from_system()

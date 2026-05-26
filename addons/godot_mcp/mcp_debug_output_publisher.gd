@@ -7,12 +7,23 @@ const OUTPUT_SCORE_THRESHOLD := 60
 const OUTPUT_KEYWORDS := ["output", "console", "log", "stdout"]
 const ERRORS_SCORE_THRESHOLD := 25
 const ERRORS_KEYWORDS := [
-	"error", "errors", "warning", "warnings",
-	"stack", "trace", "gdscript", "issues"
+	"error",
+	"errors",
+	"warning",
+	"warnings",
+	"stack",
+	"trace",
+	"gdscript",
+	"issues",
 ]
 const STACK_TRACE_SCORE_THRESHOLD := 65
 const STACK_TRACE_KEYWORDS := [
-	"stack", "trace", "callstack", "call_stack", "stack trace", "call stack"
+	"stack",
+	"trace",
+	"callstack",
+	"call_stack",
+	"stack trace",
+	"call stack",
 ]
 const STACK_FRAMES_SCORE_THRESHOLD := 65
 const STACK_FRAMES_KEYWORDS := [
@@ -22,13 +33,13 @@ const STACK_FRAMES_KEYWORDS := [
 	"call frames",
 	"call stack",
 	"stackframe",
-	"frames panel"
+	"frames panel",
 ]
 const SUMMARY_VALUE_MAX_LEN := 160
 
 var mcp_sse: MCPSse
 
-var _subscribers: Dictionary = {}
+var _subscribers: Dictionary = { }
 var _elapsed := 0.0
 var _last_length := 0
 var _cached_output_control: Control = null
@@ -40,8 +51,10 @@ var _last_control_path := ""
 var _last_log_file_path := ""
 var _last_control_search_summary := ""
 
+
 func _ready() -> void:
 	set_process(false)
+
 
 func subscribe(client_id: int) -> void:
 	_subscribers[client_id] = true
@@ -49,13 +62,16 @@ func subscribe(client_id: int) -> void:
 	if not is_processing():
 		set_process(true)
 
+
 func unsubscribe(client_id: int) -> void:
 	if _subscribers.erase(client_id) and _subscribers.is_empty():
 		set_process(false)
 
+
 func unsubscribe_all() -> void:
 	_subscribers.clear()
 	set_process(false)
+
 
 func _process(delta: float) -> void:
 	if _subscribers.is_empty():
@@ -69,12 +85,14 @@ func _process(delta: float) -> void:
 
 	_publish_incremental_frame()
 
+
 func _initialize_baseline() -> void:
 	var current_text := _fetch_log_text()
 	if current_text == null:
 		_last_length = 0
 	else:
 		_last_length = current_text.length()
+
 
 func _publish_incremental_frame() -> void:
 	var text := _fetch_log_text()
@@ -111,12 +129,13 @@ func _publish_incremental_frame() -> void:
 			"timestamp": Time.get_ticks_msec(),
 			"chunk": chunk,
 			"lines": lines,
-			"reset": reset
-		}
+			"reset": reset,
+		},
 	}
 
 	for client_id in _subscribers.keys():
 		_send_event_to_client(int(client_id), payload)
+
 
 func _send_event_to_client(client_id: int, payload: Dictionary) -> void:
 	if mcp_sse == null:
@@ -124,9 +143,10 @@ func _send_event_to_client(client_id: int, payload: Dictionary) -> void:
 	# Wrap as MCP notification for SSE transport
 	var notification = MCPTypes.make_notification(
 		"notifications/debug/" + payload.get("event", "output"),
-		payload.get("data", payload)
+		payload.get("data", payload),
 	)
 	mcp_sse.send_mcp_message(client_id, notification)
+
 
 func _fetch_log_text() -> String:
 	var control := _get_output_control()
@@ -168,10 +188,12 @@ func _fetch_log_text() -> String:
 	_record_capture("none", "; ".join(detail_notes))
 	return ""
 
+
 func _record_capture(source: String, detail: String) -> void:
 	_last_capture_source = source
 	_last_capture_detail = detail
 	_last_capture_timestamp = Time.get_ticks_msec()
+
 
 func _extract_text_from_control(control: Object) -> String:
 	if not is_instance_valid(control):
@@ -191,6 +213,7 @@ func _extract_text_from_control(control: Object) -> String:
 		return "\n".join(lines)
 	return ""
 
+
 func _fetch_debugger_log_text() -> String:
 	if Engine.has_singleton("EditorDebuggerNode"):
 		var debugger = Engine.get_singleton("EditorDebuggerNode")
@@ -202,6 +225,7 @@ func _fetch_debugger_log_text() -> String:
 			return String(debugger_panel.call("get_output"))
 	return ""
 
+
 func _fetch_log_file_text() -> String:
 	if not Engine.is_editor_hint():
 		return ""
@@ -211,7 +235,7 @@ func _fetch_log_file_text() -> String:
 		"editor/editor.log",
 		"user/editor/editor.log",
 		"logs/editor.log",
-		"editor.log"
+		"editor.log",
 	]
 
 	for relative_path in path_candidates:
@@ -232,10 +256,12 @@ func _fetch_log_file_text() -> String:
 	file.close()
 	return content
 
+
 func _locate_output_control() -> Control:
 	var result := _locate_control_with_scoring(Callable(self, "_score_output_control"), OUTPUT_SCORE_THRESHOLD)
 	_last_control_search_summary = String(result.get("summary", ""))
 	return result.get("control")
+
 
 func _locate_control_with_scoring(scoring_func: Callable, threshold: int) -> Dictionary:
 	var summary: Array = []
@@ -243,11 +269,11 @@ func _locate_control_with_scoring(scoring_func: Callable, threshold: int) -> Dic
 	if not Engine.is_editor_hint():
 		return {
 			"control": null,
-			"summary": "editor_hint=false"
+			"summary": "editor_hint=false",
 		}
 	summary.append("editor_hint=true")
 
-	var base_control_result: Dictionary = {}
+	var base_control_result: Dictionary = { }
 	var base_control: Control = null
 
 	if Engine.has_meta("GodotMCPPlugin"):
@@ -271,7 +297,7 @@ func _locate_control_with_scoring(scoring_func: Callable, threshold: int) -> Dic
 						if int(base_control_result.get("score", 0)) >= threshold and base_control_result.get("control"):
 							return {
 								"control": base_control_result.get("control"),
-								"summary": "; ".join(summary)
+								"summary": "; ".join(summary),
 							}
 				else:
 					summary.append("direct_base_control=invalid")
@@ -285,17 +311,17 @@ func _locate_control_with_scoring(scoring_func: Callable, threshold: int) -> Dic
 	var has_editor_node := Engine.has_singleton("EditorNode")
 	summary.append("editor_node_singleton=%s" % ("true" if has_editor_node else "false"))
 	if not has_editor_node:
-		return {"control": null, "summary": "; ".join(summary)}
+		return { "control": null, "summary": "; ".join(summary) }
 
 	var editor_node = Engine.get_singleton("EditorNode")
 	if editor_node == null:
 		summary.append("editor_node=null")
-		return {"control": null, "summary": "; ".join(summary)}
+		return { "control": null, "summary": "; ".join(summary) }
 	summary.append("editor_node=valid")
 
 	var search_roots: Array = []
-	var root_labels: Dictionary = {}
-	var root_ids: Dictionary = {}
+	var root_labels: Dictionary = { }
+	var root_ids: Dictionary = { }
 
 	if editor_node.has_method("get_log"):
 		var editor_log = editor_node.call("get_log")
@@ -385,16 +411,17 @@ func _locate_control_with_scoring(scoring_func: Callable, threshold: int) -> Dic
 	if best_control and best_score >= threshold:
 		return {
 			"control": best_control,
-			"summary": summary_text
+			"summary": summary_text,
 		}
 
 	return {
 		"control": null,
-		"summary": summary_text
+		"summary": summary_text,
 	}
 
+
 func _search_control_tree(root: Node, scoring_func: Callable = Callable()) -> Dictionary:
-	var visited: Dictionary = {}
+	var visited: Dictionary = { }
 	var queue: Array = []
 	var visited_count := 0
 	var best_control: Control = null
@@ -441,8 +468,9 @@ func _search_control_tree(root: Node, scoring_func: Callable = Callable()) -> Di
 		"score": best_score,
 		"class": best_class,
 		"path": best_path,
-		"visited": visited_count
+		"visited": visited_count,
 	}
+
 
 func _register_control_root(search_roots: Array, root_labels: Dictionary, root_ids: Dictionary, node: Node, label: String) -> void:
 	if not is_instance_valid(node):
@@ -454,6 +482,7 @@ func _register_control_root(search_roots: Array, root_labels: Dictionary, root_i
 	search_roots.append(node)
 	root_labels[id] = label
 
+
 func _summarize_summary_value(text: String) -> String:
 	if text.is_empty():
 		return text
@@ -461,11 +490,14 @@ func _summarize_summary_value(text: String) -> String:
 		return text
 	return text.substr(0, SUMMARY_VALUE_MAX_LEN - 3) + "..."
 
+
 func _score_output_control(node: Control) -> int:
 	return _score_control_with_keywords(node, OUTPUT_KEYWORDS)
 
+
 func _score_errors_control(node: Control) -> int:
 	return _score_control_with_keywords(node, ERRORS_KEYWORDS)
+
 
 func _score_control_with_keywords(node: Control, keywords: Array) -> int:
 	if node == null:
@@ -521,6 +553,7 @@ func _score_control_with_keywords(node: Control, keywords: Array) -> int:
 
 	return score
 
+
 func _has_editor_log_ancestor(node: Node) -> bool:
 	var current := node.get_parent()
 	while current:
@@ -529,19 +562,22 @@ func _has_editor_log_ancestor(node: Node) -> bool:
 		current = current.get_parent()
 	return false
 
+
 func _get_output_control() -> Control:
 	if is_instance_valid(_cached_output_control):
 		return _cached_output_control
 	_cached_output_control = _locate_output_control()
 	return _cached_output_control
 
+
 func get_full_log_text() -> String:
 	return _fetch_log_text()
+
 
 func clear_log_output() -> Dictionary:
 	var diagnostics := {
 		"timestamp": Time.get_ticks_msec(),
-		"attempts": []
+		"attempts": [],
 	}
 
 	if not Engine.is_editor_hint():
@@ -549,7 +585,7 @@ func clear_log_output() -> Dictionary:
 		return {
 			"cleared": false,
 			"method": "editor_only",
-			"diagnostics": diagnostics
+			"diagnostics": diagnostics,
 		}
 
 	var cleared := false
@@ -600,8 +636,9 @@ func clear_log_output() -> Dictionary:
 	return {
 		"cleared": cleared,
 		"method": method_used,
-		"diagnostics": diagnostics
+		"diagnostics": diagnostics,
 	}
+
 
 func _broadcast_log_reset() -> void:
 	if _subscribers.is_empty() or mcp_sse == null:
@@ -613,20 +650,22 @@ func _broadcast_log_reset() -> void:
 			"timestamp": Time.get_ticks_msec(),
 			"chunk": "",
 			"lines": [],
-			"reset": true
-		}
+			"reset": true,
+		},
 	}
 
 	for client_id in _subscribers.keys():
 		_send_event_to_client(int(client_id), payload)
 
+
 func get_errors_panel_snapshot() -> Dictionary:
 	return _capture_errors_tab_text()
+
 
 func clear_errors_panel() -> Dictionary:
 	var diagnostics := {
 		"timestamp": Time.get_ticks_msec(),
-		"attempts": []
+		"attempts": [],
 	}
 
 	if not Engine.is_editor_hint():
@@ -634,14 +673,14 @@ func clear_errors_panel() -> Dictionary:
 		return {
 			"cleared": false,
 			"method": "editor_only",
-			"diagnostics": diagnostics
+			"diagnostics": diagnostics,
 		}
 
 	var cleared := false
 	var method_used := ""
 
 	var search_roots := _gather_editor_search_roots()
-	var tab_info := {}
+	var tab_info := { }
 	for root in search_roots:
 		tab_info = _find_errors_tab_control(root)
 		if tab_info.has("control"):
@@ -652,7 +691,7 @@ func clear_errors_panel() -> Dictionary:
 		return {
 			"cleared": false,
 			"method": "not_found",
-			"diagnostics": diagnostics
+			"diagnostics": diagnostics,
 		}
 
 	var tab_control: Control = tab_info.get("control")
@@ -661,7 +700,7 @@ func clear_errors_panel() -> Dictionary:
 		return {
 			"cleared": false,
 			"method": "invalid_control",
-			"diagnostics": diagnostics
+			"diagnostics": diagnostics,
 		}
 
 	diagnostics["tab_title"] = tab_info.get("tab_title", "")
@@ -688,14 +727,17 @@ func clear_errors_panel() -> Dictionary:
 	return {
 		"cleared": cleared,
 		"method": method_used,
-		"diagnostics": diagnostics
+		"diagnostics": diagnostics,
 	}
+
 
 func get_stack_trace_snapshot(session_id: int = -1) -> Dictionary:
 	return _capture_stack_trace_panel(session_id)
 
+
 func get_stack_frames_snapshot(session_id: int = -1) -> Dictionary:
 	return _capture_stack_frames_panel(session_id)
+
 
 func _gather_editor_search_roots() -> Array:
 	var search_roots: Array = []
@@ -737,12 +779,13 @@ func _gather_editor_search_roots() -> Array:
 
 	return search_roots
 
+
 func _capture_errors_tab_text() -> Dictionary:
 	var diagnostics := {
 		"source": "errors_tab_lookup",
 		"timestamp": Time.get_ticks_msec(),
 		"control_found": false,
-		"search_summary": ""
+		"search_summary": "",
 	}
 
 	if not Engine.is_editor_hint():
@@ -751,13 +794,13 @@ func _capture_errors_tab_text() -> Dictionary:
 			"text": "",
 			"lines": [],
 			"line_count": 0,
-			"diagnostics": diagnostics
+			"diagnostics": diagnostics,
 		}
 
 	var search_roots := _gather_editor_search_roots()
 
 	var aggregated_summary: Array = []
-	var tab_info := {}
+	var tab_info := { }
 	for root in search_roots:
 		tab_info = _find_errors_tab_control(root)
 		var summary := String(tab_info.get("summary", ""))
@@ -774,7 +817,7 @@ func _capture_errors_tab_text() -> Dictionary:
 			"text": "",
 			"lines": [],
 			"line_count": 0,
-			"diagnostics": diagnostics
+			"diagnostics": diagnostics,
 		}
 
 	var tab_control: Control = tab_info.get("control")
@@ -784,7 +827,7 @@ func _capture_errors_tab_text() -> Dictionary:
 			"text": "",
 			"lines": [],
 			"line_count": 0,
-			"diagnostics": diagnostics
+			"diagnostics": diagnostics,
 		}
 
 	diagnostics["control_found"] = true
@@ -811,15 +854,16 @@ func _capture_errors_tab_text() -> Dictionary:
 		"text": text,
 		"lines": lines,
 		"line_count": lines.size(),
-		"diagnostics": diagnostics
+		"diagnostics": diagnostics,
 	}
+
 
 func _capture_stack_trace_panel(session_id: int) -> Dictionary:
 	var diagnostics := {
 		"source": "stack_trace_lookup",
 		"timestamp": Time.get_ticks_msec(),
 		"control_found": false,
-		"search_summary": ""
+		"search_summary": "",
 	}
 
 	if not Engine.is_editor_hint():
@@ -829,7 +873,7 @@ func _capture_stack_trace_panel(session_id: int) -> Dictionary:
 			"lines": [],
 			"line_count": 0,
 			"frames": [],
-			"diagnostics": diagnostics
+			"diagnostics": diagnostics,
 		}
 
 	var search_roots := _gather_editor_search_roots()
@@ -840,11 +884,11 @@ func _capture_stack_trace_panel(session_id: int) -> Dictionary:
 			"lines": [],
 			"line_count": 0,
 			"frames": [],
-			"diagnostics": diagnostics
+			"diagnostics": diagnostics,
 		}
 
 	var aggregated_summary: Array = []
-	var panel_info := {}
+	var panel_info := { }
 	for root in search_roots:
 		panel_info = _find_stack_trace_control(root)
 		var summary := String(panel_info.get("summary", ""))
@@ -863,7 +907,7 @@ func _capture_stack_trace_panel(session_id: int) -> Dictionary:
 			"lines": [],
 			"line_count": 0,
 			"frames": [],
-			"diagnostics": diagnostics
+			"diagnostics": diagnostics,
 		}
 
 	var panel_control: Control = panel_info.get("control")
@@ -874,7 +918,7 @@ func _capture_stack_trace_panel(session_id: int) -> Dictionary:
 			"lines": [],
 			"line_count": 0,
 			"frames": [],
-			"diagnostics": diagnostics
+			"diagnostics": diagnostics,
 		}
 
 	diagnostics["control_found"] = true
@@ -933,15 +977,16 @@ func _capture_stack_trace_panel(session_id: int) -> Dictionary:
 		"lines": lines,
 		"line_count": lines.size(),
 		"frames": frames,
-		"diagnostics": diagnostics
+		"diagnostics": diagnostics,
 	}
+
 
 func _capture_stack_frames_panel(session_id: int) -> Dictionary:
 	var diagnostics := {
 		"source": "stack_frames_lookup",
 		"timestamp": Time.get_ticks_msec(),
 		"control_found": false,
-		"search_summary": ""
+		"search_summary": "",
 	}
 
 	if not Engine.is_editor_hint():
@@ -951,7 +996,7 @@ func _capture_stack_frames_panel(session_id: int) -> Dictionary:
 			"lines": [],
 			"line_count": 0,
 			"frames": [],
-			"diagnostics": diagnostics
+			"diagnostics": diagnostics,
 		}
 
 	var search_roots := _gather_editor_search_roots()
@@ -962,11 +1007,11 @@ func _capture_stack_frames_panel(session_id: int) -> Dictionary:
 			"lines": [],
 			"line_count": 0,
 			"frames": [],
-			"diagnostics": diagnostics
+			"diagnostics": diagnostics,
 		}
 
 	var aggregated_summary: Array = []
-	var panel_info := {}
+	var panel_info := { }
 	for root in search_roots:
 		panel_info = _find_stack_frames_control(root)
 		var summary := String(panel_info.get("summary", ""))
@@ -985,7 +1030,7 @@ func _capture_stack_frames_panel(session_id: int) -> Dictionary:
 			"lines": [],
 			"line_count": 0,
 			"frames": [],
-			"diagnostics": diagnostics
+			"diagnostics": diagnostics,
 		}
 
 	var panel_control: Control = panel_info.get("control")
@@ -996,7 +1041,7 @@ func _capture_stack_frames_panel(session_id: int) -> Dictionary:
 			"lines": [],
 			"line_count": 0,
 			"frames": [],
-			"diagnostics": diagnostics
+			"diagnostics": diagnostics,
 		}
 
 	diagnostics["control_found"] = true
@@ -1053,8 +1098,9 @@ func _capture_stack_frames_panel(session_id: int) -> Dictionary:
 		"lines": lines,
 		"line_count": lines.size(),
 		"frames": frames,
-		"diagnostics": diagnostics
+		"diagnostics": diagnostics,
 	}
+
 
 func _find_errors_tab_control(root: Node) -> Dictionary:
 	var queue: Array = []
@@ -1062,7 +1108,7 @@ func _find_errors_tab_control(root: Node) -> Dictionary:
 	if is_instance_valid(root):
 		queue.append(root)
 	else:
-		return {}
+		return { }
 
 	var visited := 0
 
@@ -1103,13 +1149,14 @@ func _find_errors_tab_control(root: Node) -> Dictionary:
 						return {
 							"control": tab_control,
 							"tab_title": title,
-							"summary": "; ".join(summary)
+							"summary": "; ".join(summary),
 						}
 		for child in candidate.get_children():
 			if child is Node:
 				queue.append(child)
 
-	return {"summary": "; ".join(summary)}
+	return { "summary": "; ".join(summary) }
+
 
 func _find_stack_trace_control(root: Node) -> Dictionary:
 	var queue: Array = []
@@ -1117,7 +1164,7 @@ func _find_stack_trace_control(root: Node) -> Dictionary:
 	if is_instance_valid(root):
 		queue.append(root)
 	else:
-		return {}
+		return { }
 
 	var visited := 0
 	var max_nodes := 8192
@@ -1159,7 +1206,7 @@ func _find_stack_trace_control(root: Node) -> Dictionary:
 								"control": tab_control,
 								"tree": tree,
 								"tab_title": title,
-								"summary": "; ".join(summary)
+								"summary": "; ".join(summary),
 							}
 						break
 
@@ -1171,7 +1218,7 @@ func _find_stack_trace_control(root: Node) -> Dictionary:
 				var info := {
 					"control": matched_control,
 					"score": control_score,
-					"summary": "score=%d name=%s class=%s visited=%d" % [control_score, candidate.name, candidate.get_class(), visited]
+					"summary": "score=%d name=%s class=%s visited=%d" % [control_score, candidate.name, candidate.get_class(), visited],
 				}
 				if tree_control:
 					info["tree"] = tree_control
@@ -1182,7 +1229,8 @@ func _find_stack_trace_control(root: Node) -> Dictionary:
 				queue.append(child)
 
 	summary.append("visited=%d" % visited)
-	return {"summary": "; ".join(summary)}
+	return { "summary": "; ".join(summary) }
+
 
 func _find_stack_frames_control(root: Node) -> Dictionary:
 	var queue: Array = []
@@ -1190,7 +1238,7 @@ func _find_stack_frames_control(root: Node) -> Dictionary:
 	if is_instance_valid(root):
 		queue.append(root)
 	else:
-		return {}
+		return { }
 
 	var visited := 0
 	var max_nodes := 8192
@@ -1231,7 +1279,7 @@ func _find_stack_frames_control(root: Node) -> Dictionary:
 							"control": tab_control,
 							"tree": tree,
 							"tab_title": title,
-							"summary": "; ".join(summary)
+							"summary": "; ".join(summary),
 						}
 
 		if candidate is Control:
@@ -1242,7 +1290,7 @@ func _find_stack_frames_control(root: Node) -> Dictionary:
 				var info := {
 					"control": matched_control,
 					"score": control_score,
-					"summary": "score=%d name=%s class=%s visited=%d" % [control_score, candidate.name, candidate.get_class(), visited]
+					"summary": "score=%d name=%s class=%s visited=%d" % [control_score, candidate.name, candidate.get_class(), visited],
 				}
 				if tree_control:
 					info["tree"] = tree_control
@@ -1261,7 +1309,8 @@ func _find_stack_frames_control(root: Node) -> Dictionary:
 			combined_summary = "%s | %s" % [combined_summary, fallback_info["summary"]]
 		fallback_info["summary"] = combined_summary
 		return fallback_info
-	return {"summary": "; ".join(summary)}
+	return { "summary": "; ".join(summary) }
+
 
 func _score_stack_trace_candidate(node: Control) -> int:
 	var score := 0
@@ -1296,6 +1345,7 @@ func _score_stack_trace_candidate(node: Control) -> int:
 				break
 
 	return score
+
 
 func _score_stack_frames_candidate(node: Control) -> int:
 	var score := 0
@@ -1337,6 +1387,7 @@ func _score_stack_frames_candidate(node: Control) -> int:
 
 	return score
 
+
 func _title_matches_stack_frames(title_lower: String) -> bool:
 	if title_lower.is_empty():
 		return false
@@ -1350,6 +1401,7 @@ func _title_matches_stack_frames(title_lower: String) -> bool:
 		if title_lower.find(keyword) != -1:
 			return true
 	return false
+
 
 func _collect_stack_tree_frames(tree: Tree) -> Array:
 	var frames: Array = []
@@ -1368,6 +1420,7 @@ func _collect_stack_tree_frames(tree: Tree) -> Array:
 		item = item.get_next()
 
 	return frames
+
 
 func _build_stack_frame_from_item(item: TreeItem, column_count: int, fallback_index: int) -> Dictionary:
 	var columns: Array = []
@@ -1409,8 +1462,9 @@ func _build_stack_frame_from_item(item: TreeItem, column_count: int, fallback_in
 		"location": location,
 		"script": script_path,
 		"line": line_number,
-		"columns": columns
+		"columns": columns,
 	}
+
 
 func _derive_frames_from_lines(lines: Array) -> Array:
 	var frames: Array = []
@@ -1446,7 +1500,7 @@ func _derive_frames_from_lines(lines: Array) -> Array:
 					"location": location,
 					"script": script_path,
 					"line": line_number,
-					"columns": [script_path]
+					"columns": [script_path],
 				}
 		if not parsed.is_empty():
 			frames.append(parsed)
@@ -1455,10 +1509,11 @@ func _derive_frames_from_lines(lines: Array) -> Array:
 
 	return frames
 
+
 func _parse_stack_line(line: String, fallback_index: int) -> Dictionary:
 	var trimmed := line.strip_edges()
 	if trimmed.is_empty():
-		return {}
+		return { }
 
 	var index_value := fallback_index
 	if trimmed.begins_with("#"):
@@ -1483,10 +1538,11 @@ func _parse_stack_line(line: String, fallback_index: int) -> Dictionary:
 				"location": trimmed,
 				"script": script_path,
 				"line": line_number,
-				"columns": [trimmed]
+				"columns": [trimmed],
 			}
 
-	return {}
+	return { }
+
 
 func _unwrap_tab_content(control: Control) -> Control:
 	if not is_instance_valid(control):
@@ -1513,12 +1569,14 @@ func _unwrap_tab_content(control: Control) -> Control:
 
 	return current
 
+
 func _is_text_display_control(control: Control) -> bool:
 	if not is_instance_valid(control):
 		return false
 	if control.is_class("TextEdit") or control.is_class("CodeEdit") or control.is_class("RichTextLabel"):
 		return true
 	return false
+
 
 func _find_descendant_tree(root: Node, max_nodes: int = 8192) -> Tree:
 	if not is_instance_valid(root):
@@ -1537,6 +1595,7 @@ func _find_descendant_tree(root: Node, max_nodes: int = 8192) -> Tree:
 				queue.append(child)
 	return null
 
+
 func _find_descendant_text_control(root: Node, max_nodes: int = 4096) -> Control:
 	if not is_instance_valid(root):
 		return null
@@ -1554,14 +1613,17 @@ func _find_descendant_text_control(root: Node, max_nodes: int = 4096) -> Control
 				queue.append(child)
 	return null
 
+
 func _summarize_control_structure(root: Node, max_depth: int, max_nodes: int) -> Array:
 	var summary: Array = []
 	if not is_instance_valid(root):
 		return summary
-	var queue: Array = [{
-		"node": root,
-		"depth": 0
-	}]
+	var queue: Array = [
+		{
+			"node": root,
+			"depth": 0,
+		},
+	]
 	var visited := 0
 	while queue.size() > 0 and visited < max_nodes:
 		var entry = queue.pop_front()
@@ -1578,11 +1640,14 @@ func _summarize_control_structure(root: Node, max_depth: int, max_nodes: int) ->
 			continue
 		for child in node.get_children():
 			if child is Node:
-				queue.append({
-					"node": child,
-					"depth": depth + 1
-				})
+				queue.append(
+					{
+						"node": child,
+						"depth": depth + 1,
+					},
+				)
 	return summary
+
 
 func _collect_tree_lines(tree: Tree) -> Array:
 	var lines: Array = []
@@ -1605,6 +1670,7 @@ func _collect_tree_lines(tree: Tree) -> Array:
 			item = item.get_next()
 	return lines
 
+
 func _count_tree_items(tree: Tree) -> int:
 	if not is_instance_valid(tree):
 		return 0
@@ -1624,6 +1690,7 @@ func _count_tree_items(tree: Tree) -> int:
 			count += 1
 			item = item.get_next()
 	return count
+
 
 func _collect_tree_item_lines(item: TreeItem, lines: Array, depth: int, column_count: int) -> void:
 	if not is_instance_valid(item):
@@ -1653,6 +1720,7 @@ func _collect_tree_item_lines(item: TreeItem, lines: Array, depth: int, column_c
 		_collect_tree_item_lines(child, lines, depth + 1, column_count)
 		child = child.get_next()
 
+
 func get_capture_diagnostics() -> Dictionary:
 	return {
 		"source": _last_capture_source,
@@ -1661,8 +1729,9 @@ func get_capture_diagnostics() -> Dictionary:
 		"control_class": _last_control_class,
 		"control_path": _last_control_path,
 		"log_file_path": _last_log_file_path,
-		"control_search": _last_control_search_summary
+		"control_search": _last_control_search_summary,
 	}
+
 
 func _make_indent(depth: int) -> String:
 	if depth <= 0:

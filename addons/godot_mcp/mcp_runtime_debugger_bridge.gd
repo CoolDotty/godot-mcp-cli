@@ -16,12 +16,14 @@ const SCENE_CAPTURE_NAMES := ["scene", "limboai"]
 const EVAL_CAPTURE_NAME := "mcp_eval"
 const INPUT_CAPTURE_NAME := "mcp_input"
 
-var _sessions: Dictionary = {}
+var _sessions: Dictionary = { }
 var _next_eval_request_id: int = 1
+
 
 func _init() -> void:
 	_sessions.clear()
 	_next_eval_request_id = 1
+
 
 func _setup_session(session_id: int) -> void:
 	_trace("setup_session %s" % session_id)
@@ -37,6 +39,7 @@ func _setup_session(session_id: int) -> void:
 			_sessions[session_id] = state
 			_trace("session %s already active" % session_id)
 
+
 func _has_capture(capture: String) -> bool:
 	for prefix in SCENE_CAPTURE_NAMES:
 		if capture == prefix or capture.begins_with(prefix + ":"):
@@ -44,6 +47,7 @@ func _has_capture(capture: String) -> bool:
 	if capture == INPUT_CAPTURE_NAME or capture.begins_with(INPUT_CAPTURE_NAME + ":"):
 		return true
 	return false
+
 
 func _capture(message: String, data: Array, session_id: int) -> bool:
 	_trace("capture %s session=%s payload_len=%s" % [message, session_id, data.size()])
@@ -65,6 +69,7 @@ func _capture(message: String, data: Array, session_id: int) -> bool:
 		return true
 	return false
 
+
 func request_runtime_scene_snapshot() -> Dictionary:
 	var active_sessions := _get_active_session_ids()
 	_trace("active sessions: %s" % active_sessions)
@@ -79,8 +84,9 @@ func request_runtime_scene_snapshot() -> Dictionary:
 
 	return {
 		"session_id": session_id,
-		"baseline_version": baseline_version
+		"baseline_version": baseline_version,
 	}
+
 
 func has_new_runtime_snapshot(session_id: int, baseline_version: int) -> bool:
 	if not _sessions.has(session_id):
@@ -88,15 +94,17 @@ func has_new_runtime_snapshot(session_id: int, baseline_version: int) -> bool:
 	var state: Dictionary = _sessions[session_id]
 	return state.get("tree_version", 0) > baseline_version and state.get("tree")
 
-func build_runtime_snapshot(session_id: int, options: Dictionary = {}) -> Dictionary:
+
+func build_runtime_snapshot(session_id: int, options: Dictionary = { }) -> Dictionary:
 	if not _sessions.has(session_id):
-		return {}
+		return { }
 	var state: Dictionary = _sessions[session_id]
 	if not state.get("tree"):
-		return {}
+		return { }
 	return _build_response(state["tree"], options)
 
-func evaluate_runtime_expression(expression: String, options: Dictionary = {}) -> Dictionary:
+
+func evaluate_runtime_expression(expression: String, options: Dictionary = { }) -> Dictionary:
 	var trimmed := expression.strip_edges()
 	if trimmed.is_empty():
 		return { "error": "Expression cannot be empty." }
@@ -120,41 +128,44 @@ func evaluate_runtime_expression(expression: String, options: Dictionary = {}) -
 	if typeof(options) == TYPE_DICTIONARY:
 		payload.append(options.duplicate(true))
 	else:
-		payload.append({})
+		payload.append({ })
 
 	_trace("sending runtime eval request %s to session %s" % [request_id, session_id])
 	session.send_message("%s:evaluate" % EVAL_CAPTURE_NAME, payload)
 
 	return {
 		"session_id": session_id,
-		"request_id": request_id
+		"request_id": request_id,
 	}
+
 
 func has_eval_result(session_id: int, request_id: int) -> bool:
 	if not _sessions.has(session_id):
 		return false
 	var state: Dictionary = _sessions[session_id]
-	var results: Dictionary = state.get("eval_results", {})
+	var results: Dictionary = state.get("eval_results", { })
 	return results.has(request_id)
+
 
 func take_eval_result(session_id: int, request_id: int) -> Dictionary:
 	if not _sessions.has(session_id):
-		return {}
+		return { }
 	var state: Dictionary = _sessions[session_id]
-	var results: Dictionary = state.get("eval_results", {})
+	var results: Dictionary = state.get("eval_results", { })
 	if not results.has(request_id):
-		return {}
+		return { }
 	var payload: Variant = results[request_id]
 	results.erase(request_id)
 	state["eval_results"] = results
 	_sessions[session_id] = state
 
-	var response := {}
+	var response := { }
 	if typeof(payload) == TYPE_DICTIONARY:
 		response = payload.duplicate(true)
 		if response.has("_received_at"):
 			response.erase("_received_at")
 	return response
+
 
 func _get_active_session_ids() -> Array:
 	var result: Array = []
@@ -167,6 +178,7 @@ func _get_active_session_ids() -> Array:
 			result.append(i)
 	return result
 
+
 func _request_scene_tree(session_id: int) -> void:
 	var session := get_session(session_id)
 	_trace("request_scene_tree session=%s session=%s" % [session_id, session])
@@ -177,11 +189,12 @@ func _request_scene_tree(session_id: int) -> void:
 		for prefix in SCENE_CAPTURE_NAMES:
 			payload[0] = "%s:scene_tree" % prefix
 			session.send_message("request_message", payload)
-		var state: Dictionary = _sessions.get(session_id, {})
+		var state: Dictionary = _sessions.get(session_id, { })
 		state["last_request_time"] = Time.get_ticks_msec()
 		_sessions[session_id] = state
 	else:
 		_trace("session inactive, cannot request scene tree")
+
 
 func _store_scene_tree(session_id: int, payload: Array) -> void:
 	if payload.is_empty():
@@ -190,13 +203,14 @@ func _store_scene_tree(session_id: int, payload: Array) -> void:
 	if parsed.is_empty():
 		return
 
-	var state: Dictionary = _sessions.get(session_id, {})
+	var state: Dictionary = _sessions.get(session_id, { })
 	state["tree"] = parsed
 	state["tree_version"] = state.get("tree_version", 0) + 1
 	state["last_update"] = Time.get_ticks_msec()
 	_sessions[session_id] = state
 
 	scene_tree_updated.emit(session_id)
+
 
 func _store_eval_result(session_id: int, payload: Array) -> void:
 	_ensure_session(session_id)
@@ -234,17 +248,18 @@ func _store_eval_result(session_id: int, payload: Array) -> void:
 
 	result_dict["_received_at"] = Time.get_ticks_msec()
 
-	var state: Dictionary = _sessions.get(session_id, {})
-	var results: Dictionary = state.get("eval_results", {})
+	var state: Dictionary = _sessions.get(session_id, { })
+	var results: Dictionary = state.get("eval_results", { })
 	results[request_id] = result_dict
 	state["eval_results"] = results
 	_sessions[session_id] = state
 
 	runtime_eval_completed.emit(session_id, request_id)
 
+
 func _parse_remote_tree(flat_data: Array) -> Dictionary:
 	if flat_data.size() % 6 != 0:
-		return {}
+		return { }
 
 	var nodes: Array = []
 	var index := 0
@@ -256,12 +271,12 @@ func _parse_remote_tree(flat_data: Array) -> Dictionary:
 			"object_id": int(flat_data[index + 3]),
 			"scene_file_path": str(flat_data[index + 4]),
 			"view_flags": int(flat_data[index + 5]),
-			"children": []
+			"children": [],
 		}
 		nodes.append(node)
 		index += 6
 	if nodes.is_empty():
-		return {}
+		return { }
 
 	var stack: Array = []
 	var root: Dictionary = nodes[0]
@@ -275,7 +290,7 @@ func _parse_remote_tree(flat_data: Array) -> Dictionary:
 			stack.pop_back()
 		if stack.is_empty():
 			# Malformed stream; abort to avoid inconsistent data.
-			return {}
+			return { }
 		var parent: Dictionary = stack.back()
 		parent["children"].append(current)
 		parent["_remaining"] -= 1
@@ -289,10 +304,12 @@ func _parse_remote_tree(flat_data: Array) -> Dictionary:
 	_assign_paths(root, "")
 	return root
 
+
 func _cleanup_internal_keys(node: Dictionary) -> void:
 	node.erase("_remaining")
 	for child in node["children"]:
 		_cleanup_internal_keys(child)
+
 
 func _assign_paths(node: Dictionary, parent_path: String) -> void:
 	var name: String = node.get("name", "")
@@ -307,11 +324,12 @@ func _assign_paths(node: Dictionary, parent_path: String) -> void:
 	node["visibility"] = {
 		"has_visible_method": bool(view_flags & VIEW_HAS_VISIBLE_METHOD),
 		"visible": bool(view_flags & VIEW_VISIBLE),
-		"visible_in_tree": bool(view_flags & VIEW_VISIBLE_IN_TREE)
+		"visible_in_tree": bool(view_flags & VIEW_VISIBLE_IN_TREE),
 	}
 
 	for child in node["children"]:
 		_assign_paths(child, current_path)
+
 
 func _build_response(root: Dictionary, options: Dictionary) -> Dictionary:
 	var max_depth: int = options.get("max_depth", -1)
@@ -323,7 +341,7 @@ func _build_response(root: Dictionary, options: Dictionary) -> Dictionary:
 		"root_node_name": root.get("name", ""),
 		"root_node_type": root.get("type", ""),
 		"runtime": true,
-		"structure": _project_node(root, 0, max_depth)
+		"structure": _project_node(root, 0, max_depth),
 	}
 
 	if include_props:
@@ -333,6 +351,7 @@ func _build_response(root: Dictionary, options: Dictionary) -> Dictionary:
 
 	return response
 
+
 func _project_node(node: Dictionary, depth: int, max_depth: int) -> Dictionary:
 	var projected := {
 		"name": node.get("name", ""),
@@ -340,8 +359,8 @@ func _project_node(node: Dictionary, depth: int, max_depth: int) -> Dictionary:
 		"path": node.get("path", ""),
 		"object_id": node.get("object_id", 0),
 		"scene_file_path": node.get("scene_file_path", ""),
-		"visibility": node.get("visibility", {}),
-		"children": []
+		"visibility": node.get("visibility", { }),
+		"children": [],
 	}
 
 	if max_depth >= 0 and depth >= max_depth:
@@ -352,6 +371,7 @@ func _project_node(node: Dictionary, depth: int, max_depth: int) -> Dictionary:
 
 	return projected
 
+
 func _ensure_session(session_id: int) -> void:
 	if not _sessions.has(session_id):
 		_sessions[session_id] = {
@@ -359,9 +379,10 @@ func _ensure_session(session_id: int) -> void:
 			"tree_version": 0,
 			"last_update": 0,
 			"active": false,
-			"eval_results": {},
-			"input_results": {}
+			"eval_results": { },
+			"input_results": { },
 		}
+
 
 func _on_session_started(session_id: int) -> void:
 	_ensure_session(session_id)
@@ -370,6 +391,7 @@ func _on_session_started(session_id: int) -> void:
 	_sessions[session_id] = state
 	_trace("session %s started" % session_id)
 
+
 func _on_session_stopped(session_id: int) -> void:
 	_ensure_session(session_id)
 	var state: Dictionary = _sessions[session_id]
@@ -377,12 +399,14 @@ func _on_session_stopped(session_id: int) -> void:
 	_sessions[session_id] = state
 	_trace("session %s stopped" % session_id)
 
+
 func _on_session_breaked(can_debug: bool, session_id: int) -> void:
 	_ensure_session(session_id)
 	var state: Dictionary = _sessions[session_id]
 	state["can_debug"] = can_debug
 	_sessions[session_id] = state
 	_trace("session %s breaked can_debug=%s" % [session_id, can_debug])
+
 
 func _normalize_capture_name(message: String) -> String:
 	for prefix in SCENE_CAPTURE_NAMES:
@@ -402,37 +426,39 @@ func _normalize_capture_name(message: String) -> String:
 		return "scene:scene_tree"
 	return message
 
+
 func _trace(text: String) -> void:
 	if OS.is_stdout_verbose():
 		print("[RuntimeBridge] %s" % text)
 
 # Input simulation result handling
 
+
 func _store_input_result(session_id: int, payload: Array) -> void:
 	_ensure_session(session_id)
 	if payload.is_empty():
 		_trace("input result payload empty")
 		return
-	
+
 	var entry: Variant = payload[0]
 	if typeof(entry) != TYPE_DICTIONARY:
 		_trace("input result payload not dictionary")
 		return
-	
+
 	var result_dict: Dictionary = entry.duplicate(true)
 	var request_id := int(result_dict.get("request_id", -1))
 	if request_id < 0:
 		_trace("input result payload missing request_id")
 		return
-	
+
 	result_dict["_received_at"] = Time.get_ticks_msec()
-	
-	var state: Dictionary = _sessions.get(session_id, {})
-	var results: Dictionary = state.get("input_results", {})
+
+	var state: Dictionary = _sessions.get(session_id, { })
+	var results: Dictionary = state.get("input_results", { })
 	results[request_id] = result_dict
 	state["input_results"] = results
 	_sessions[session_id] = state
-	
+
 	input_result_received.emit(session_id, request_id)
 
 
@@ -440,23 +466,23 @@ func has_input_result(session_id: int, request_id: int) -> bool:
 	if not _sessions.has(session_id):
 		return false
 	var state: Dictionary = _sessions[session_id]
-	var results: Dictionary = state.get("input_results", {})
+	var results: Dictionary = state.get("input_results", { })
 	return results.has(request_id)
 
 
 func take_input_result(session_id: int, request_id: int) -> Dictionary:
 	if not _sessions.has(session_id):
-		return {}
+		return { }
 	var state: Dictionary = _sessions[session_id]
-	var results: Dictionary = state.get("input_results", {})
+	var results: Dictionary = state.get("input_results", { })
 	if not results.has(request_id):
-		return {}
+		return { }
 	var payload: Variant = results[request_id]
 	results.erase(request_id)
 	state["input_results"] = results
 	_sessions[session_id] = state
-	
-	var response := {}
+
+	var response := { }
 	if typeof(payload) == TYPE_DICTIONARY:
 		response = payload.duplicate(true)
 		if response.has("_received_at"):

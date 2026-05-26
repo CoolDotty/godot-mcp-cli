@@ -11,12 +11,12 @@ signal breakpoint_set(session_id: int, script_path: String, line: int, success: 
 signal breakpoint_removed(session_id: int, script_path: String, line: int, success: bool)
 
 # Debugger state tracking
-var _active_sessions: Dictionary = {}
-var _breakpoints: Dictionary = {}
+var _active_sessions: Dictionary = { }
+var _breakpoints: Dictionary = { }
 var _current_client_id: int = -1
 var _websocket_server = null
-var _session_breakpoints: Dictionary = {}  # Track breakpoints per session
-var _session_stack_cache: Dictionary = {}
+var _session_breakpoints: Dictionary = { } # Track breakpoints per session
+var _session_stack_cache: Dictionary = { }
 
 # Constants for message throttling
 const MAX_STACK_FRAMES: int = 50
@@ -25,36 +25,45 @@ var _last_event_time: int = 0
 const STACK_CAPTURE_NAMES := ["stack", "call_stack", "callstack", "stack_dump"]
 const DEBUGGER_CAPTURE_NAMES := ["mcp_debugger", "breakpoint", "debugger"]
 
+
 func _init():
 	_active_sessions.clear()
 	_breakpoints.clear()
 	_session_breakpoints.clear()
 	_session_stack_cache.clear()
 
+
 func set_websocket_server(server):
 	_websocket_server = server
+
 
 func set_client_id(client_id: int):
 	_current_client_id = client_id
 
+
 func _normalize_capture_name(value: String) -> String:
 	return value.to_lower()
+
 
 func _is_stack_capture_name(name: String) -> bool:
 	return name in STACK_CAPTURE_NAMES
 
+
 func _is_debugger_capture_name(name: String) -> bool:
 	return name in DEBUGGER_CAPTURE_NAMES
+
 
 func _has_capture(capture: String) -> bool:
 	# We handle multiple captures to integrate with Godot's debugger system
 	var capture_lc = _normalize_capture_name(capture)
 	return _is_debugger_capture_name(capture_lc) or _is_stack_capture_name(capture_lc)
 
+
 func _build_stack_capture_payload(data: Array) -> Dictionary:
 	if not data.is_empty() and typeof(data[0]) == TYPE_DICTIONARY:
 		return data[0]
-	return {"stack": data}
+	return { "stack": data }
+
 
 func _capture(message: String, data: Array, session_id: int) -> bool:
 	var normalized_session_id = _normalize_session_id(session_id)
@@ -79,6 +88,7 @@ func _capture(message: String, data: Array, session_id: int) -> bool:
 
 	return true
 
+
 func _handle_native_breakpoint(session_id: int, data: Array) -> void:
 	# Handle native Godot breakpoint events
 	if data.size() > 0:
@@ -100,11 +110,15 @@ func _handle_native_breakpoint(session_id: int, data: Array) -> void:
 			var stack_info = _get_session_stack_info(session_id)
 
 			# Send event to MCP client
-			_handle_breakpoint_hit(session_id, {
-				"script_path": script_path,
-				"line": line,
-				"stack_info": stack_info
-			})
+			_handle_breakpoint_hit(
+				session_id,
+				{
+					"script_path": script_path,
+					"line": line,
+					"stack_info": stack_info,
+				},
+			)
+
 
 func _handle_debugger_message(session_id: int, data: Array) -> void:
 	# Handle general debugger messages (pause, resume, etc.)
@@ -121,6 +135,7 @@ func _handle_debugger_message(session_id: int, data: Array) -> void:
 					_handle_stack_frame_changed(session_id, message_data)
 				"stack_dump":
 					_handle_stack_dump(session_id, message_data)
+
 
 func _handle_mcp_debugger_message(session_id: int, data: Array) -> void:
 	# Handle our custom MCP debugger messages
@@ -144,6 +159,7 @@ func _handle_mcp_debugger_message(session_id: int, data: Array) -> void:
 		_:
 			_trace("Unknown MCP debugger event type: %s" % event_type)
 
+
 func _setup_session(session_id: int) -> void:
 	session_id = _normalize_session_id(session_id)
 	_trace("Setting up debugger session %s" % session_id)
@@ -162,6 +178,7 @@ func _setup_session(session_id: int) -> void:
 			# Restore any existing breakpoints for this session
 			_setup_session_breakpoints(session_id)
 
+
 func _normalize_session_id(value) -> Variant:
 	var value_type := typeof(value)
 	if value_type == TYPE_INT:
@@ -173,6 +190,7 @@ func _normalize_session_id(value) -> Variant:
 		if text.is_valid_int():
 			return int(text)
 	return value
+
 
 # Session tracking helpers
 func _is_empty_session_request(value) -> bool:
@@ -189,6 +207,7 @@ func _is_empty_session_request(value) -> bool:
 		_:
 			return false
 
+
 func _collect_session_candidate_ids(requested_session_id) -> Array:
 	var candidates: Array = []
 	var use_active_sessions := _is_empty_session_request(requested_session_id)
@@ -204,6 +223,7 @@ func _collect_session_candidate_ids(requested_session_id) -> Array:
 
 	return candidates
 
+
 func _find_tracked_session_key(session_id) -> Variant:
 	if _active_sessions.has(session_id):
 		return session_id
@@ -214,6 +234,7 @@ func _find_tracked_session_key(session_id) -> Variant:
 		if _normalize_session_id(key) == normalized_id:
 			return key
 	return null
+
 
 func _resolve_session_index(session_identifier) -> int:
 	var normalized = _normalize_session_id(session_identifier)
@@ -238,11 +259,13 @@ func _resolve_session_index(session_identifier) -> int:
 
 	return -1
 
+
 func _get_session_instance(session_identifier):
 	var session_index := _resolve_session_index(session_identifier)
 	if session_index < 0:
 		return null
 	return get_session(session_index)
+
 
 func _move_dict_key(target: Dictionary, old_key, new_key) -> void:
 	if old_key == null or new_key == null or old_key == new_key:
@@ -255,12 +278,14 @@ func _move_dict_key(target: Dictionary, old_key, new_key) -> void:
 	target[new_key] = target[old_key]
 	target.erase(old_key)
 
+
 func _rekey_session_data(old_key, new_key) -> void:
 	if old_key == null or new_key == null or old_key == new_key:
 		return
 	_move_dict_key(_active_sessions, old_key, new_key)
 	_move_dict_key(_session_breakpoints, old_key, new_key)
 	_move_dict_key(_session_stack_cache, old_key, new_key)
+
 
 func _sync_tracked_session(session_id) -> bool:
 	var normalized_id = _normalize_session_id(session_id)
@@ -281,6 +306,7 @@ func _sync_tracked_session(session_id) -> bool:
 
 	return false
 
+
 func _ensure_session_state(session_id, mark_active: bool = false) -> void:
 	var normalized_id = _normalize_session_id(session_id)
 	var tracked_key = _find_tracked_session_key(normalized_id)
@@ -291,13 +317,14 @@ func _ensure_session_state(session_id, mark_active: bool = false) -> void:
 			"paused": false,
 			"current_script": "",
 			"current_line": -1,
-			"breakpoints": []
+			"breakpoints": [],
 		}
 	elif tracked_key != normalized_id:
 		_rekey_session_data(tracked_key, normalized_id)
 
 	if mark_active and _active_sessions.has(normalized_id):
 		_active_sessions[normalized_id]["active"] = true
+
 
 func _track_local_breakpoint(script_path: String, line: int) -> void:
 	if not _breakpoints.has(script_path):
@@ -306,6 +333,7 @@ func _track_local_breakpoint(script_path: String, line: int) -> void:
 	var script_breakpoints: Array = _breakpoints[script_path]
 	if line not in script_breakpoints:
 		script_breakpoints.append(line)
+
 
 func _untrack_local_breakpoint(script_path: String, line: int) -> void:
 	if not _breakpoints.has(script_path):
@@ -316,12 +344,14 @@ func _untrack_local_breakpoint(script_path: String, line: int) -> void:
 	if script_breakpoints.is_empty():
 		_breakpoints.erase(script_path)
 
+
 func _ensure_session_breakpoint_storage(session_id) -> Dictionary:
 	var normalized_id = _normalize_session_id(session_id)
 	if not _session_breakpoints.has(normalized_id):
-		_session_breakpoints[normalized_id] = {}
+		_session_breakpoints[normalized_id] = { }
 
 	return _session_breakpoints[normalized_id]
+
 
 func _session_breakpoint_lines(session_id, script_path: String) -> Array:
 	var storage = _ensure_session_breakpoint_storage(session_id)
@@ -330,42 +360,48 @@ func _session_breakpoint_lines(session_id, script_path: String) -> Array:
 
 	return storage[script_path]
 
+
 func _get_primary_session_info() -> Dictionary:
 	var active_sessions = _get_active_session_ids()
 	if active_sessions.is_empty():
-		return {}
+		return { }
 
 	var session_id = active_sessions[0]
 	var session = _get_session_instance(session_id)
 	if not session or not session.is_active():
-		return {"error": "Debugger session not active"}
+		return { "error": "Debugger session not active" }
 
 	return {
 		"id": session_id,
-		"session": session
+		"session": session,
 	}
+
 
 func _with_primary_session(error_message: String, action: Callable) -> Dictionary:
 	var info = _get_primary_session_info()
 	if info.is_empty():
-		return {"success": false, "message": error_message}
+		return { "success": false, "message": error_message }
 
 	if info.has("error"):
-		return {"success": false, "message": info["error"]}
+		return { "success": false, "message": info["error"] }
 
 	return action.call(info["id"], info["session"])
+
 
 func _active_session_objects() -> Array:
 	var sessions: Array = []
 	for session_id in _get_active_session_ids():
 		var session = _get_session_instance(session_id)
 		if session and session.is_active():
-			sessions.append({
-				"id": session_id,
-				"session": session
-			})
+			sessions.append(
+				{
+					"id": session_id,
+					"session": session,
+				},
+			)
 
 	return sessions
+
 
 func _add_breakpoint_source(target: Dictionary, sources: Dictionary, source_name: String, breakpoint_map: Dictionary) -> void:
 	if breakpoint_map.is_empty():
@@ -374,15 +410,19 @@ func _add_breakpoint_source(target: Dictionary, sources: Dictionary, source_name
 	_merge_breakpoint_map(target, breakpoint_map)
 	sources[source_name] = breakpoint_map
 
-func _send_session_command(command: String, trace_label: String) -> Dictionary:
-	return _with_primary_session("No active debugger session", func(session_id: int, session):
-		if not session or not session.has_method("send_message"):
-			return {"success": false, "message": "Debugger session not active"}
 
-		session.send_message(command, [])
-		_trace(trace_label)
-		return {"success": true, "session_id": session_id}
+func _send_session_command(command: String, trace_label: String) -> Dictionary:
+	return _with_primary_session(
+		"No active debugger session",
+		func(session_id: int, session):
+			if not session or not session.has_method("send_message"):
+				return { "success": false, "message": "Debugger session not active" }
+
+			session.send_message(command, [])
+			_trace(trace_label)
+			return { "success": true, "session_id": session_id }
 	)
+
 
 # Breakpoint management
 func set_breakpoint(script_path: String, line: int) -> Dictionary:
@@ -404,12 +444,12 @@ func set_breakpoint(script_path: String, line: int) -> Dictionary:
 					"success": true,
 					"session_id": session_id,
 					"script_path": script_path,
-					"line": line
+					"line": line,
 				}
 
 			return {
 				"success": false,
-				"message": "Failed to set breakpoint in Godot's debugger"
+				"message": "Failed to set breakpoint in Godot's debugger",
 			}
 	)
 
@@ -417,29 +457,31 @@ func set_breakpoint(script_path: String, line: int) -> Dictionary:
 func remove_breakpoint(script_path: String, line: int) -> Dictionary:
 	_untrack_local_breakpoint(script_path, line)
 
-	return _with_primary_session("No active debugger session", func(session_id: int, session):
-		if _session_breakpoints.has(session_id) and _session_breakpoints[session_id].has(script_path):
-			_session_breakpoints[session_id][script_path].erase(line)
-			if _session_breakpoints[session_id][script_path].is_empty():
-				_session_breakpoints[session_id].erase(script_path)
+	return _with_primary_session(
+		"No active debugger session",
+		func(session_id: int, session):
+			if _session_breakpoints.has(session_id) and _session_breakpoints[session_id].has(script_path):
+				_session_breakpoints[session_id][script_path].erase(line)
+				if _session_breakpoints[session_id][script_path].is_empty():
+					_session_breakpoints[session_id].erase(script_path)
 
-		var success = _remove_native_breakpoint(session, script_path, line)
-		if success:
-			breakpoint_removed.emit(session_id, script_path, line, true)
-			_trace("Breakpoint removed successfully: %s:%d" % [script_path, line])
+			var success = _remove_native_breakpoint(session, script_path, line)
+			if success:
+				breakpoint_removed.emit(session_id, script_path, line, true)
+				_trace("Breakpoint removed successfully: %s:%d" % [script_path, line])
 
-			return {"success": true, "session_id": session_id}
+				return { "success": true, "session_id": session_id }
 
-		return {
-			"success": false,
-			"message": "Failed to remove breakpoint in Godot's debugger"
-		}
+			return {
+				"success": false,
+				"message": "Failed to remove breakpoint in Godot's debugger",
+			}
 	)
 
 
 func get_breakpoints() -> Dictionary:
-	var aggregated: Dictionary = {}
-	var sources: Dictionary = {}
+	var aggregated: Dictionary = { }
+	var sources: Dictionary = { }
 
 	_add_breakpoint_source(aggregated, sources, "mcp_tracked", _breakpoints.duplicate(true))
 	_add_breakpoint_source(aggregated, sources, "session_tracked", _collect_tracked_session_breakpoints())
@@ -448,8 +490,9 @@ func get_breakpoints() -> Dictionary:
 
 	return {
 		"breakpoints": aggregated,
-		"sources": sources
+		"sources": sources,
 	}
+
 
 func clear_all_breakpoints() -> Dictionary:
 	var old_breakpoints = _breakpoints.duplicate(true)
@@ -482,18 +525,22 @@ func clear_all_breakpoints() -> Dictionary:
 	return {
 		"success": true,
 		"cleared_breakpoints": old_breakpoints,
-		"cleared_count": cleared_count
+		"cleared_count": cleared_count,
 	}
+
 
 # Execution control
 func pause_execution() -> Dictionary:
 	return _send_session_command("break", "Sent break command to debugger")
 
+
 func resume_execution() -> Dictionary:
 	return _send_session_command("continue", "Sent continue command to debugger")
 
+
 func step_over() -> Dictionary:
 	return _send_session_command("next", "Sent next (step over) command to debugger")
+
 
 func step_into() -> Dictionary:
 	return _send_session_command("step", "Sent step (step into) command to debugger")
@@ -505,17 +552,17 @@ func get_call_stack(session_id = null, timeout_ms: int = 750) -> Dictionary:
 	if candidate_ids.is_empty():
 		return {
 			"error": "session_not_found",
-			"message": "No active debugger session available"
+			"message": "No active debugger session available",
 		}
 
-	var last_error: Dictionary = {}
+	var last_error: Dictionary = { }
 	for candidate in candidate_ids:
 		var normalized_id = _normalize_session_id(candidate)
 		if not _sync_tracked_session(normalized_id):
 			if _resolve_session_index(normalized_id) < 0:
 				last_error = {
 					"error": "session_not_found",
-					"session_id": normalized_id
+					"session_id": normalized_id,
 				}
 				continue
 			_ensure_session_state(normalized_id, true)
@@ -524,7 +571,7 @@ func get_call_stack(session_id = null, timeout_ms: int = 750) -> Dictionary:
 		if session == null or not session.is_active():
 			last_error = {
 				"error": "session_not_active",
-				"session_id": normalized_id
+				"session_id": normalized_id,
 			}
 			continue
 
@@ -541,20 +588,22 @@ func get_call_stack(session_id = null, timeout_ms: int = 750) -> Dictionary:
 	if last_error.is_empty():
 		return {
 			"error": "session_not_found",
-			"message": "No debugger session responded"
+			"message": "No debugger session responded",
 		}
 	return last_error
+
 
 func get_cached_stack_info(session_id) -> Dictionary:
 	var normalized_id = _normalize_session_id(session_id)
 	if typeof(normalized_id) == TYPE_INT and normalized_id < 0:
-		return {"error": "invalid_session"}
+		return { "error": "invalid_session" }
 	if _session_stack_cache.has(normalized_id):
 		return _session_stack_cache[normalized_id].duplicate(true)
 	var stack_info := _update_session_stack_cache(normalized_id)
 	if stack_info.has("error"):
 		return stack_info
 	return stack_info.duplicate(true)
+
 
 func get_current_state() -> Dictionary:
 	var active_sessions = _get_active_session_ids()
@@ -564,11 +613,11 @@ func get_current_state() -> Dictionary:
 			"active_sessions": [],
 			"total_breakpoints": 0,
 			"debugger_active": false,
-			"diagnostics": diagnostics
+			"diagnostics": diagnostics,
 		}
 
 	var session_id = active_sessions[0]
-	var state = _active_sessions.get(session_id, {})
+	var state = _active_sessions.get(session_id, { })
 
 	return {
 		"active_sessions": active_sessions,
@@ -579,15 +628,16 @@ func get_current_state() -> Dictionary:
 		"current_script": state.get("current_script", ""),
 		"current_line": state.get("current_line", -1),
 		"breakpoints": _breakpoints.duplicate(true),
-		"diagnostics": diagnostics
+		"diagnostics": diagnostics,
 	}
+
 
 # Private methods
 # All handlers below assume session_id has already been normalized.
 func _handle_breakpoint_hit(session_id: int, event_data: Dictionary) -> void:
 	var script_path = event_data.get("script_path", "")
 	var line = event_data.get("line", -1)
-	var stack_info = event_data.get("stack_info", {})
+	var stack_info = event_data.get("stack_info", { })
 	var sanitized_stack := _update_session_stack_cache(session_id, stack_info)
 
 	# Update session state
@@ -602,14 +652,18 @@ func _handle_breakpoint_hit(session_id: int, event_data: Dictionary) -> void:
 		return
 
 	# Send to MCP client
-	_send_debugger_event("breakpoint_hit", {
-		"session_id": session_id,
-		"script_path": script_path,
-		"line": line,
-		"stack_info": sanitized_stack
-	})
+	_send_debugger_event(
+		"breakpoint_hit",
+		{
+			"session_id": session_id,
+			"script_path": script_path,
+			"line": line,
+			"stack_info": sanitized_stack,
+		},
+	)
 
 	breakpoint_hit.emit(session_id, script_path, line, stack_info)
+
 
 func _handle_execution_paused(session_id: int, event_data: Dictionary) -> void:
 	var reason = event_data.get("reason", "unknown")
@@ -621,12 +675,16 @@ func _handle_execution_paused(session_id: int, event_data: Dictionary) -> void:
 	if not _should_send_event():
 		return
 
-	_send_debugger_event("execution_paused", {
-		"session_id": session_id,
-		"reason": reason
-	})
+	_send_debugger_event(
+		"execution_paused",
+		{
+			"session_id": session_id,
+			"reason": reason,
+		},
+	)
 
 	execution_paused.emit(session_id, reason)
+
 
 func _handle_execution_resumed(session_id: int) -> void:
 	_ensure_session_state(session_id, true)
@@ -638,24 +696,32 @@ func _handle_execution_resumed(session_id: int) -> void:
 	if not _should_send_event():
 		return
 
-	_send_debugger_event("execution_resumed", {
-		"session_id": session_id
-	})
+	_send_debugger_event(
+		"execution_resumed",
+		{
+			"session_id": session_id,
+		},
+	)
 
 	execution_resumed.emit(session_id)
 
+
 func _handle_stack_frame_changed(session_id: int, event_data: Dictionary) -> void:
-	var frame_info = event_data.get("frame_info", {})
+	var frame_info = event_data.get("frame_info", { })
 
 	if not _should_send_event():
 		return
 
-	_send_debugger_event("stack_frame_changed", {
-		"session_id": session_id,
-		"frame_info": frame_info
-	})
+	_send_debugger_event(
+		"stack_frame_changed",
+		{
+			"session_id": session_id,
+			"frame_info": frame_info,
+		},
+	)
 
 	stack_frame_changed.emit(session_id, frame_info)
+
 
 func _handle_stack_dump(session_id: int, event_data: Dictionary) -> void:
 	var raw_frames = event_data.get("stack", event_data.get("frames", event_data.get("dump", [])))
@@ -669,19 +735,21 @@ func _handle_stack_dump(session_id: int, event_data: Dictionary) -> void:
 				var script_path = String(frame[0])
 				var line_number = int(frame[1])
 				var function_name = String(frame[2])
-				structured_frames.append({
-					"script": script_path,
-					"file": script_path,
-					"line": line_number,
-					"function": function_name
-				})
+				structured_frames.append(
+					{
+						"script": script_path,
+						"file": script_path,
+						"line": line_number,
+						"function": function_name,
+					},
+				)
 			else:
-				structured_frames.append({"raw": frame})
+				structured_frames.append({ "raw": frame })
 
 	var stack_info := {
 		"frames": structured_frames,
 		"total_frames": structured_frames.size(),
-		"current_frame": event_data.get("current_frame", 0)
+		"current_frame": event_data.get("current_frame", 0),
 	}
 
 	if event_data.has("current_script"):
@@ -691,6 +759,7 @@ func _handle_stack_dump(session_id: int, event_data: Dictionary) -> void:
 
 	_update_session_stack_cache(session_id, stack_info)
 
+
 func _send_debugger_event(event_type: String, data: Dictionary) -> void:
 	if _websocket_server and _current_client_id >= 0:
 		var response = {
@@ -698,11 +767,12 @@ func _send_debugger_event(event_type: String, data: Dictionary) -> void:
 			"type": "debugger_event",
 			"event": event_type,
 			"data": data,
-			"timestamp": Time.get_ticks_msec()
+			"timestamp": Time.get_ticks_msec(),
 		}
 
 		_websocket_server.send_response(_current_client_id, response)
 		_trace("Sent debugger event: %s" % event_type)
+
 
 func _should_send_event() -> bool:
 	var current_time = Time.get_ticks_msec()
@@ -711,6 +781,7 @@ func _should_send_event() -> bool:
 
 	_last_event_time = current_time
 	return true
+
 
 func _sanitize_stack_info(stack_info: Dictionary) -> Dictionary:
 	# Limit stack frames to prevent overwhelming the client
@@ -722,6 +793,7 @@ func _sanitize_stack_info(stack_info: Dictionary) -> Dictionary:
 
 	return stack_info
 
+
 func _update_session_stack_cache(session_id, stack_info = null) -> Dictionary:
 	session_id = _normalize_session_id(session_id)
 	var info: Dictionary
@@ -730,7 +802,7 @@ func _update_session_stack_cache(session_id, stack_info = null) -> Dictionary:
 	else:
 		info = _get_session_stack_info(session_id)
 	if typeof(info) != TYPE_DICTIONARY:
-		info = {}
+		info = { }
 	if info.has("error"):
 		return info
 	var sanitized := _sanitize_stack_info(info)
@@ -738,6 +810,7 @@ func _update_session_stack_cache(session_id, stack_info = null) -> Dictionary:
 	sanitized["session_id"] = session_id
 	_session_stack_cache[session_id] = sanitized.duplicate(true)
 	return sanitized
+
 
 func _wait_for_stack_dump(session_id, request_timestamp: int, timeout_ms: int) -> Dictionary:
 	session_id = _normalize_session_id(session_id)
@@ -750,7 +823,7 @@ func _wait_for_stack_dump(session_id, request_timestamp: int, timeout_ms: int) -
 		return {
 			"error": "stack_dump_unavailable",
 			"session_id": session_id,
-			"message": "Editor tree unavailable while waiting for stack dump."
+			"message": "Editor tree unavailable while waiting for stack dump.",
 		}
 	var tree: SceneTree = loop
 
@@ -783,17 +856,19 @@ func _wait_for_stack_dump(session_id, request_timestamp: int, timeout_ms: int) -
 	return {
 		"error": "stack_dump_timeout",
 		"session_id": session_id,
-		"message": "Timed out waiting for debugger stack dump."
+		"message": "Timed out waiting for debugger stack dump.",
 	}
+
 
 func _duplicate_stack_cache(session_id) -> Dictionary:
 	session_id = _normalize_session_id(session_id)
 	if not _session_stack_cache.has(session_id):
-		return {}
+		return { }
 	var cached = _session_stack_cache[session_id]
 	if typeof(cached) != TYPE_DICTIONARY:
-		return {}
+		return { }
 	return cached.duplicate(true)
+
 
 func _stack_info_ready(info: Dictionary, request_timestamp: int) -> bool:
 	if info.is_empty():
@@ -810,18 +885,20 @@ func _stack_info_ready(info: Dictionary, request_timestamp: int) -> bool:
 		return false
 	return true
 
+
 func _count_total_breakpoints() -> int:
 	var count = 0
 	for script_breakpoints in _breakpoints.values():
 		count += script_breakpoints.size()
 	return count
 
+
 func _collect_session_diagnostics(active_sessions: Array) -> Dictionary:
 	var diagnostics := {
 		"active_session_ids": active_sessions.duplicate(),
 		"tracked_sessions": _active_sessions.keys(),
 		"godot_session_objects": [],
-		"godot_session_count": 0
+		"godot_session_count": 0,
 	}
 
 	var sessions := get_sessions()
@@ -840,13 +917,14 @@ func _collect_session_diagnostics(active_sessions: Array) -> Dictionary:
 			"id": session_id,
 			"has_session": true,
 			"active": session.has_method("is_active") and session.is_active(),
-			"breaked": session.has_method("is_breaked") and session.is_breaked()
+			"breaked": session.has_method("is_breaked") and session.is_breaked(),
 		}
 		diagnostics["godot_session_objects"].append(session_info)
 	return diagnostics
 
+
 func _collect_tracked_session_breakpoints() -> Dictionary:
-	var collected: Dictionary = {}
+	var collected: Dictionary = { }
 
 	for session_id in _session_breakpoints.keys():
 		var session_breakpoints = _session_breakpoints[session_id]
@@ -856,8 +934,9 @@ func _collect_tracked_session_breakpoints() -> Dictionary:
 
 	return collected
 
+
 func _collect_active_session_breakpoints() -> Dictionary:
-	var collected: Dictionary = {}
+	var collected: Dictionary = { }
 	var sessions := get_sessions()
 
 	for i in range(sessions.size()):
@@ -879,25 +958,27 @@ func _collect_active_session_breakpoints() -> Dictionary:
 
 	return collected
 
+
 func _collect_editor_breakpoints() -> Dictionary:
 	if not Engine.has_singleton("EditorInterface"):
-		return {}
+		return { }
 
 	var editor_interface = Engine.get_singleton("EditorInterface")
 	if not editor_interface or not editor_interface.has_method("get_script_editor"):
-		return {}
+		return { }
 
 	var script_editor = editor_interface.get_script_editor()
 	if not script_editor or not script_editor.has_method("get_breakpoints"):
-		return {}
+		return { }
 
 	var editor_breakpoints = script_editor.get_breakpoints()
 	var normalized := _convert_breakpoint_payload(editor_breakpoints)
 
 	return normalized
 
+
 func _convert_breakpoint_payload(payload) -> Dictionary:
-	var result: Dictionary = {}
+	var result: Dictionary = { }
 	if payload == null:
 		return result
 
@@ -933,6 +1014,7 @@ func _convert_breakpoint_payload(payload) -> Dictionary:
 
 	return result
 
+
 func _parse_breakpoint_entry(entry) -> Dictionary:
 	if typeof(entry) == TYPE_DICTIONARY:
 		var script_path := ""
@@ -950,11 +1032,11 @@ func _parse_breakpoint_entry(entry) -> Dictionary:
 			line = _parse_line_value(entry["line_number"])
 
 		if script_path.is_empty() or line < 0:
-			return {}
+			return { }
 
 		return {
 			"script_path": script_path,
-			"line": line
+			"line": line,
 		}
 
 	if typeof(entry) == TYPE_ARRAY:
@@ -966,33 +1048,35 @@ func _parse_breakpoint_entry(entry) -> Dictionary:
 			if not script_path_value.is_empty() and line_value >= 0:
 				return {
 					"script_path": script_path_value,
-					"line": line_value
+					"line": line_value,
 				}
-		return {}
+		return { }
 
 	if typeof(entry) == TYPE_STRING:
 		return _parse_breakpoint_string(entry)
 
 	if typeof(entry) == TYPE_INT:
-		return {}
+		return { }
 
-	return {}
+	return { }
+
 
 func _parse_breakpoint_string(entry: String) -> Dictionary:
 	var separator_index := entry.rfind(":")
 	if separator_index == -1:
-		return {}
+		return { }
 
 	var script_path := entry.substr(0, separator_index).strip_edges()
 	var line_str := entry.substr(separator_index + 1, entry.length()).strip_edges()
 
 	if script_path.is_empty() or not line_str.is_valid_int():
-		return {}
+		return { }
 
 	return {
 		"script_path": script_path,
-		"line": int(line_str)
+		"line": int(line_str),
 	}
+
 
 func _parse_line_value(value) -> int:
 	if value == null:
@@ -1013,6 +1097,7 @@ func _parse_line_value(value) -> int:
 			if text_value.is_valid_int():
 				return int(text_value)
 			return -1
+
 
 func _normalize_breakpoint_lines(line_values) -> Array:
 	var result: Array = []
@@ -1048,6 +1133,7 @@ func _normalize_breakpoint_lines(line_values) -> Array:
 	result.sort()
 	return result
 
+
 func _merge_breakpoint_map(target: Dictionary, source: Dictionary) -> void:
 	for script_path in source.keys():
 		var source_lines = source[script_path]
@@ -1065,6 +1151,7 @@ func _merge_breakpoint_map(target: Dictionary, source: Dictionary) -> void:
 
 		target_lines.sort()
 		target[script_path] = target_lines
+
 
 func _get_active_session_ids() -> Array:
 	var result: Array = []
@@ -1101,12 +1188,14 @@ func _get_active_session_ids() -> Array:
 
 	return result
 
+
 func _on_session_started(session_id: int) -> void:
 	session_id = _normalize_session_id(session_id)
 	_ensure_session_state(session_id, true)
 	_trace("Debugger session %s started" % session_id)
 	# Restore any existing breakpoints for this session
 	_setup_session_breakpoints(session_id)
+
 
 func _on_session_stopped(session_id: int) -> void:
 	session_id = _normalize_session_id(session_id)
@@ -1116,11 +1205,13 @@ func _on_session_stopped(session_id: int) -> void:
 	_session_stack_cache.erase(session_id)
 	_trace("Debugger session %s stopped" % session_id)
 
+
 func _on_session_breaked(can_debug: bool, session_id: int) -> void:
 	session_id = _normalize_session_id(session_id)
 	_ensure_session_state(session_id)
 	_active_sessions[session_id]["paused"] = can_debug
 	_trace("Debugger session %s breaked, can_debug=%s" % [session_id, can_debug])
+
 
 # Native breakpoint integration
 func _set_native_breakpoint(session: EditorDebuggerSession, script_path: String, line: int) -> bool:
@@ -1144,8 +1235,8 @@ func _set_native_breakpoint(session: EditorDebuggerSession, script_path: String,
 		# Try different parameter formats for set_breakpoint
 		# Based on error, Godot expects exactly 3 arguments with String first
 		var attempts = [
-			[script_path, line, true],   # script_path, line, enabled (most likely correct)
-			[script_path, line, 1],      # script_path, line, enabled (as int)
+			[script_path, line, true], # script_path, line, enabled (most likely correct)
+			[script_path, line, 1], # script_path, line, enabled (as int)
 		]
 
 		for attempt in attempts:
@@ -1159,10 +1250,10 @@ func _set_native_breakpoint(session: EditorDebuggerSession, script_path: String,
 		# Try different message formats that Godot might understand
 		# Using the format from DEBUGGER_FIX_GUIDE.md
 		var attempts = [
-			["breakpoint:insert", [{"script_path": script_path, "line": line, "enabled": true}]],
-			["breakpoint:insert", [{"source": script_path, "line": line, "enabled": true}]],
-			["breakpoint:set", [{"script": script_path, "line": line, "enabled": true}]],
-			["debugger:breakpoint", [{"script_path": script_path, "line": line, "enabled": true}]]
+			["breakpoint:insert", [{ "script_path": script_path, "line": line, "enabled": true }]],
+			["breakpoint:insert", [{ "source": script_path, "line": line, "enabled": true }]],
+			["breakpoint:set", [{ "script": script_path, "line": line, "enabled": true }]],
+			["debugger:breakpoint", [{ "script_path": script_path, "line": line, "enabled": true }]],
 		]
 
 		for attempt in attempts:
@@ -1172,6 +1263,7 @@ func _set_native_breakpoint(session: EditorDebuggerSession, script_path: String,
 		return true
 
 	return false
+
 
 func _clear_all_native_breakpoints(session: EditorDebuggerSession) -> void:
 	_trace("Attempting to clear all native breakpoints from session")
@@ -1196,12 +1288,13 @@ func _clear_all_native_breakpoints(session: EditorDebuggerSession) -> void:
 			["breakpoint:clear_all", []],
 			["breakpoint:clear", []],
 			["debugger:clear_breakpoints", []],
-			["debugger:breakpoints_clear", []]
+			["debugger:breakpoints_clear", []],
 		]
 
 		for attempt in clear_attempts:
 			session.send_message(attempt[0], attempt[1])
 			_trace("Sent clear breakpoints message: %s" % attempt[0])
+
 
 func _remove_native_breakpoint(session: EditorDebuggerSession, script_path: String, line: int) -> bool:
 	# Try different approaches to remove breakpoints in Godot's debugger system
@@ -1211,10 +1304,10 @@ func _remove_native_breakpoint(session: EditorDebuggerSession, script_path: Stri
 	if session and session.has_method("send_message"):
 		# Try different message formats that Godot might understand for removal
 		var attempts = [
-			["breakpoint:remove", [{"source": script_path, "line": line}]],
-			["breakpoint:remove", [{"script_path": script_path, "line": line}]],
-			["breakpoint:remove", [{"script": script_path, "line": line}]],
-			["debugger:breakpoint_remove", [{"script_path": script_path, "line": line}]]
+			["breakpoint:remove", [{ "source": script_path, "line": line }]],
+			["breakpoint:remove", [{ "script_path": script_path, "line": line }]],
+			["breakpoint:remove", [{ "script": script_path, "line": line }]],
+			["debugger:breakpoint_remove", [{ "script_path": script_path, "line": line }]],
 		]
 
 		for attempt in attempts:
@@ -1225,8 +1318,8 @@ func _remove_native_breakpoint(session: EditorDebuggerSession, script_path: Stri
 	if session and session.has_method("set_breakpoint"):
 		# Some versions of Godot might support setting breakpoints with enabled=false to remove them
 		var attempts = [
-			[script_path, line, false],   # script_path, line, enabled=false
-			[script_path, line, 0],      # script_path, line, enabled=0
+			[script_path, line, false], # script_path, line, enabled=false
+			[script_path, line, 0], # script_path, line, enabled=0
 		]
 
 		for attempt in attempts:
@@ -1285,13 +1378,14 @@ func _remove_native_breakpoint(session: EditorDebuggerSession, script_path: Stri
 				# This is a fallback method and may not work in all Godot versions
 
 	_trace("All breakpoint removal methods attempted for %s:%d" % [script_path, line])
-	return true  # Return true to indicate we attempted removal
+	return true # Return true to indicate we attempted removal
+
 
 func _get_session_stack_info(session_id) -> Dictionary:
 	session_id = _normalize_session_id(session_id)
 	var session = _get_session_instance(session_id)
 	if not session or not session.is_active():
-		return {"frames": [], "total_frames": 0}
+		return { "frames": [], "total_frames": 0 }
 
 	# Try to get stack info from the session
 	var stack_frames := []
@@ -1302,23 +1396,24 @@ func _get_session_stack_info(session_id) -> Dictionary:
 
 		# Note: This is async - we'll need to handle the response in the capture method
 		# For now, return basic info
-		var current_script = _active_sessions.get(session_id, {}).get("current_script", "")
-		var current_line = _active_sessions.get(session_id, {}).get("current_line", -1)
+		var current_script = _active_sessions.get(session_id, { }).get("current_script", "")
+		var current_line = _active_sessions.get(session_id, { }).get("current_line", -1)
 
 		if not current_script.is_empty() and current_line >= 0:
 			var frame_info := {
 				"script": current_script,
 				"line": current_line,
 				"function": "_process",
-				"file": current_script
+				"file": current_script,
 			}
 			stack_frames.append(frame_info)
 
 	return {
 		"frames": stack_frames,
 		"total_frames": stack_frames.size(),
-		"current_frame": 0
+		"current_frame": 0,
 	}
+
 
 func _setup_session_breakpoints(session_id) -> void:
 	session_id = _normalize_session_id(session_id)
@@ -1335,6 +1430,7 @@ func _setup_session_breakpoints(session_id) -> void:
 		for line in session_bps[script_path]:
 			_set_native_breakpoint(session, script_path, line)
 			_trace("Restored breakpoint %s:%d for session %s" % [script_path, line, session_id])
+
 
 func _diagnose_session_capabilities(session: EditorDebuggerSession) -> void:
 	_trace("=== EditorDebuggerSession Capabilities ===")
@@ -1369,20 +1465,23 @@ func _diagnose_session_capabilities(session: EditorDebuggerSession) -> void:
 
 	_trace("=== End Capabilities ===")
 
+
 func _trace(text: String) -> void:
 	if OS.is_stdout_verbose():
 		print("[MCPDebugger] %s" % text)
 
+
 func _build_frames_from_debug_output() -> Dictionary:
 	var frames := _parse_frames_from_debug_output()
 	if frames.is_empty():
-		return {}
+		return { }
 	return {
 		"frames": frames,
 		"total_frames": frames.size(),
 		"current_frame": 0,
-		"source": "debug_output"
+		"source": "debug_output",
 	}
+
 
 func _parse_frames_from_debug_output() -> Array:
 	var publisher = _get_debug_output_publisher()
@@ -1410,13 +1509,14 @@ func _parse_frames_from_debug_output() -> Array:
 			frames.append(frame_dict)
 	return frames
 
+
 func _parse_print_stack_line(line: String) -> Dictionary:
 	var trimmed := line.strip_edges()
 	if not trimmed.begins_with("Frame "):
-		return {}
+		return { }
 	var dash_index := trimmed.find(" - ")
 	if dash_index == -1:
-		return {}
+		return { }
 	var index_text := trimmed.substr(6, dash_index - 6).strip_edges()
 	var index_value := 0
 	if index_text.is_valid_int():
@@ -1446,8 +1546,9 @@ func _parse_print_stack_line(line: String) -> Dictionary:
 		"script": script_path,
 		"file": script_path,
 		"line": line_number,
-		"location": location
+		"location": location,
 	}
+
 
 func _get_debug_output_publisher():
 	if Engine.has_meta("MCPDebugOutputPublisher"):

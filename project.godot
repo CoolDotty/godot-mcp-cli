@@ -25,7 +25,7 @@ MCPInputHandler="*res://addons/godot_mcp/mcp_input_handler.gd"
 
 [editor_plugins]
 
-enabled=PackedStringArray("res://addons/godot_mcp/plugin.cfg")
+enabled=PackedStringArray("res://addons/GDQuest_GDScript_formatter/plugin.cfg", "res://addons/godot_mcp/plugin.cfg")
 
 [rendering]
 
