@@ -10,9 +10,9 @@ func get_definition() -> ToolDefinition:
 			"type": "object",
 			"properties": {
 				"type": {
-			"type": "string",
-			"description": "Asset type: scenes, scripts, textures, audio, models, or all",
-		},
+					"type": "string",
+					"description": "Asset type: scenes, scripts, textures, audio, models, or all",
+				},
 			},
 		},
 		"list_assets_by_type",

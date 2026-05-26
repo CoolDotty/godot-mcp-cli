@@ -15,7 +15,7 @@ const SCENE_CAPTURE_NAMES := ["scene", "limboai", "mcp_eval", "mcp_input"]
 const STACK_CAPTURE_NAMES := ["stack", "call_stack", "callstack"]
 
 const INPUT_HANDLER_AUTOLOAD_NAME := "MCPInputHandler"
-const INPUT_HANDLER_SCRIPT_PATH := "res://addons/godot_mcp/mcp_input_handler.gd"
+const INPUT_HANDLER_SCRIPT_PATH := "res://addons/godot_mcp/mcp/mcp_input_handler.gd"
 
 
 func _enter_tree():
@@ -30,7 +30,7 @@ func _enter_tree():
 	print("\n=== MCP HTTP+SSE SERVER STARTING ===")
 
 	# Initialize the SSE manager (before HTTP server)
-	mcp_sse = load("res://addons/godot_mcp/mcp_sse.gd").new()
+	mcp_sse = load("res://addons/godot_mcp/mcp/mcp_sse.gd").new()
 	mcp_sse.name = "MCPSse"
 	add_child(mcp_sse)
 
@@ -59,7 +59,7 @@ func _enter_tree():
 	add_control_to_bottom_panel(panel, "MCP Server")
 
 	# Initialize live debug output publisher
-	var publisher_script = load("res://addons/godot_mcp/mcp_debug_output_publisher.gd")
+	var publisher_script = load("res://addons/godot_mcp/debugger/mcp_debug_output_publisher.gd")
 	if publisher_script:
 		debug_output_publisher = publisher_script.new()
 		debug_output_publisher.name = "DebugOutputPublisher"
@@ -191,7 +191,9 @@ func _try_register_runtime_bridge() -> bool:
 	if runtime_debugger_bridge:
 		return true
 
-	var runtime_bridge_script = load("res://addons/godot_mcp/mcp_runtime_debugger_bridge.gd")
+	var runtime_bridge_script = load(
+		"res://addons/godot_mcp/debugger/mcp_runtime_debugger_bridge.gd",
+	)
 	if not runtime_bridge_script:
 		if not _runtime_bridge_warning_logged:
 			_runtime_bridge_warning_logged = true
@@ -224,7 +226,7 @@ func _try_register_debugger_bridge() -> bool:
 	if debugger_bridge:
 		return true
 
-	var debugger_bridge_script = load("res://addons/godot_mcp/mcp_debugger_bridge.gd")
+	var debugger_bridge_script = load("res://addons/godot_mcp/debugger/mcp_debugger_bridge.gd")
 	if not debugger_bridge_script:
 		if not _debugger_bridge_warning_logged:
 			_debugger_bridge_warning_logged = true

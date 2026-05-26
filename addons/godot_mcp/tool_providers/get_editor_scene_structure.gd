@@ -36,16 +36,18 @@ func execute(params: Dictionary) -> Dictionary:
 	if "scene_file_path" in root:
 		var sp_type = typeof(root.scene_file_path)
 		sp = str(root.scene_file_path) if sp_type != TYPE_STRING \
-				else root.scene_file_path
+		else root.scene_file_path
 	if sp.is_empty():
 		sp = "Unsaved Scene"
-	return _ok({
-		"scene_path": sp,
-		"path": sp,
-		"root_node_type": root.get_class(),
-		"root_node_name": root.name,
-		"structure": _build_info(root, opts, 0),
-	})
+	return _ok(
+		{
+			"scene_path": sp,
+			"path": sp,
+			"root_node_type": root.get_class(),
+			"root_node_name": root.name,
+			"structure": _build_info(root, opts, 0),
+		},
+	)
 
 
 func _build_opts(params: Dictionary) -> Dictionary:

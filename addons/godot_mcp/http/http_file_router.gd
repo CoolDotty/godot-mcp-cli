@@ -128,11 +128,11 @@ func _handle_get(request: HttpRequest, response: HttpResponse) -> bool:
 				var size = file.get_length()
 				file.close()
 				var range_header := (
-					"Cache-Control: no-cache\r\n"
-					+ "Last-Modified: %s\r\n" % timestamp
-					+ "Content-Range: bytes %s-%s/%s\n\r"
-					% [start, size - 1, size]
-					+ "Content-Length: %s\r\n" % filesize
+						"Cache-Control: no-cache\r\n"
+						+ "Last-Modified: %s\r\n" % timestamp
+						+ "Content-Range: bytes %s-%s/%s\n\r"
+						% [start, size - 1, size]
+						+ "Content-Length: %s\r\n" % filesize
 				)
 				response.send_raw(
 					206,
@@ -142,9 +142,9 @@ func _handle_get(request: HttpRequest, response: HttpResponse) -> bool:
 				)
 		else:
 			var cache_header := (
-				"Cache-Control: no-cache\r\n"
-				+ "Last-Modified: %s\r\n" % timestamp
-				+ "Content-Length: %s\r\n" % filesize
+					"Cache-Control: no-cache\r\n"
+					+ "Last-Modified: %s\r\n" % timestamp
+					+ "Content-Length: %s\r\n" % filesize
 			)
 			response.send_raw(
 				200,
@@ -154,7 +154,7 @@ func _handle_get(request: HttpRequest, response: HttpResponse) -> bool:
 			)
 		return true
 	if self.listfiles and serving_dir.ends_with('/') \
-	and DirAccess.dir_exists_absolute(localpath + serving_dir):
+			and DirAccess.dir_exists_absolute(localpath + serving_dir):
 		var dir = DirAccess.open(localpath + serving_dir)
 		var dirs := dir.get_directories()
 		var files := dir.get_files()

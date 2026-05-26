@@ -97,12 +97,12 @@ func execute(params: Dictionary) -> Dictionary:
 			"elapsed_ms": elapsed_ms,
 			"actions": actions_performed,
 			"message": (
-				"Filesystem rescan %s in %d ms — %s"
-				% [
-					"completed" if not still_scanning else "timed out",
-					elapsed_ms,
-					", ".join(actions_performed),
-				]
+					"Filesystem rescan %s in %d ms — %s"
+					% [
+						"completed" if not still_scanning else "timed out",
+						elapsed_ms,
+						", ".join(actions_performed),
+					]
 			),
 		},
 	)

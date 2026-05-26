@@ -474,7 +474,7 @@ func remove_breakpoint(script_path: String, line: int) -> Dictionary:
 		"No active debugger session",
 		func(session_id: int, session):
 			if _session_breakpoints.has(session_id) and \
-			_session_breakpoints[session_id].has(script_path):
+					_session_breakpoints[session_id].has(script_path):
 				_session_breakpoints[session_id][script_path].erase(line)
 				if _session_breakpoints[session_id][script_path].is_empty():
 					_session_breakpoints[session_id].erase(script_path)
@@ -986,7 +986,7 @@ func _collect_active_session_breakpoints() -> Dictionary:
 		if session.has_method("get_breakpoints"):
 			session_breakpoints = session.get_breakpoints()
 		elif ("breakpoints" in session and session.breakpoints
-			and session.breakpoints.has_method("get_breakpoints") ):
+				and session.breakpoints.has_method("get_breakpoints")):
 			session_breakpoints = session.breakpoints.get_breakpoints()
 
 		if session_breakpoints != null:

@@ -76,8 +76,8 @@ func request_runtime_scene_snapshot() -> Dictionary:
 	if active_sessions.is_empty():
 		return {
 			"error": (
-				"No active runtime session."
-				+ " Start the project or attach the debugger first."
+					"No active runtime session."
+					+ " Start the project or attach the debugger first."
 			),
 		}
 	var session_id: int = active_sessions[0]
@@ -118,8 +118,8 @@ func evaluate_runtime_expression(expression: String, options: Dictionary = { }) 
 	if active_sessions.is_empty():
 		return {
 			"error": (
-				"No active runtime session."
-				+ " Start the project or attach the debugger first."
+					"No active runtime session."
+					+ " Start the project or attach the debugger first."
 			),
 		}
 

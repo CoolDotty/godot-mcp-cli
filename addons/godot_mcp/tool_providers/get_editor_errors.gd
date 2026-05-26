@@ -18,12 +18,14 @@ func execute(_params: Dictionary) -> Dictionary:
 	var p = _get_publisher()
 	if p and p.has_method("get_errors_panel_snapshot"):
 		return _ok(p.get_errors_panel_snapshot())
-	return _ok({
-		"text": "",
-		"lines": [],
-		"line_count": 0,
-		"diagnostics": { "error": "publisher_unavailable" },
-	})
+	return _ok(
+		{
+			"text": "",
+			"lines": [],
+			"line_count": 0,
+			"diagnostics": { "error": "publisher_unavailable" },
+		},
+	)
 
 
 func _get_publisher():

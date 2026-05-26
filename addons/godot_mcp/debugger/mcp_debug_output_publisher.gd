@@ -363,8 +363,12 @@ func _locate_control_with_scoring(scoring_func: Callable, threshold: int) -> Dic
 					summary.append("plugin_main_screen=%s" % pms)
 					if valid_main:
 						_register_control_root(
-						search_roots, root_labels, root_ids, main_screen, "main_screen",
-					)
+							search_roots,
+							root_labels,
+							root_ids,
+							main_screen,
+							"main_screen",
+						)
 				else:
 					summary.append("plugin_main_screen=missing")
 			else:
@@ -382,8 +386,12 @@ func _locate_control_with_scoring(scoring_func: Callable, threshold: int) -> Dic
 		summary.append("scene_tree_root=%s" % str_val)
 		if valid_root:
 			_register_control_root(
-					search_roots, root_labels, root_ids, tree_root, "scene_tree_root",
-				)
+				search_roots,
+				root_labels,
+				root_ids,
+				tree_root,
+				"scene_tree_root",
+			)
 	else:
 		summary.append("scene_tree=null")
 
@@ -488,9 +496,14 @@ func _search_control_tree(root: Node, scoring_func: Callable = Callable()) -> Di
 	}
 
 
-func _register_control_root(\
-		roots: Array, labels: Dictionary, ids: Dictionary, node: Node, label: String\
-	) -> void:
+func _register_control_root(
+	\
+		roots: Array,
+		labels: Dictionary,
+		ids: Dictionary,
+		node: Node,
+		label: String \
+) -> void:
 	if not is_instance_valid(node):
 		return
 	var id := node.get_instance_id()
@@ -1236,8 +1249,8 @@ func _find_stack_trace_control(root: Node) -> Dictionary:
 						if tab_container.has_method("get_tab_control"):
 							tab_control = tab_container.get_tab_control(i)
 						if (
-							not is_instance_valid(tab_control)
-							and i < tab_container.get_child_count()
+								not is_instance_valid(tab_control)
+								and i < tab_container.get_child_count()
 						):
 							var child = tab_container.get_child(i)
 							if child is Control:
@@ -1261,15 +1274,15 @@ func _find_stack_trace_control(root: Node) -> Dictionary:
 			if control_score >= STACK_TRACE_SCORE_THRESHOLD:
 				var matched_control: Control = candidate
 				var tree_control: Tree = (
-					candidate if candidate is Tree
-					else _find_descendant_tree(candidate)
+						candidate if candidate is Tree
+						else _find_descendant_tree(candidate)
 				)
 				var info := {
 					"control": matched_control,
 					"score": control_score,
 					"summary": (
-						"score=%d n=%s c=%s v=%d"
-						% [control_score, candidate.name, candidate.get_class(), visited]
+							"score=%d n=%s c=%s v=%d"
+							% [control_score, candidate.name, candidate.get_class(), visited]
 					),
 				}
 				if tree_control:
@@ -1339,15 +1352,15 @@ func _find_stack_frames_control(root: Node) -> Dictionary:
 			if control_score >= STACK_FRAMES_SCORE_THRESHOLD:
 				var matched_control: Control = candidate
 				var tree_control: Tree = (
-					candidate if candidate is Tree
-					else _find_descendant_tree(candidate)
+						candidate if candidate is Tree
+						else _find_descendant_tree(candidate)
 				)
 				var info := {
 					"control": matched_control,
 					"score": control_score,
 					"summary": (
-						"score=%d n=%s c=%s v=%d"
-						% [control_score, candidate.name, candidate.get_class(), visited]
+							"score=%d n=%s c=%s v=%d"
+							% [control_score, candidate.name, candidate.get_class(), visited]
 					),
 				}
 				if tree_control:
@@ -1635,7 +1648,7 @@ func _is_text_display_control(control: Control) -> bool:
 			control.is_class("TextEdit")
 			or control.is_class("CodeEdit")
 			or control.is_class("RichTextLabel")
-		):
+	):
 		return true
 	return false
 

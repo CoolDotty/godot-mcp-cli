@@ -236,7 +236,7 @@ func _handle_tools_call(params: Dictionary, req_id: Variant) -> Variant:
 		return _format_tool_result(result, name, req_id)
 
 	# Async result (coroutine) — schedule resolution, return 202 Accepted
-	_pending_async_results[name] = {"req_id": req_id, "coro": result}
+	_pending_async_results[name] = { "req_id": req_id, "coro": result }
 	_resolve_async(name)
 	return null
 
@@ -274,9 +274,13 @@ func _resolve_async(tool_name: String) -> void:
 	# Await the coroutine result
 	var result = await coro
 	if not result is Dictionary:
-		jsonrpc_response.emit(MCPTypes.make_error_response(
-			req_id, MCPTypes.ErrorCode.TOOL_EXECUTION_ERROR,
-			"Async tool %s returned unexpected type" % tool_name))
+		jsonrpc_response.emit(
+			MCPTypes.make_error_response(
+				req_id,
+				MCPTypes.ErrorCode.TOOL_EXECUTION_ERROR,
+				"Async tool %s returned unexpected type" % tool_name,
+			),
+		)
 		return
 	var resp = _format_tool_result(result, tool_name, req_id)
 	if resp != null:
@@ -342,10 +346,10 @@ func _load_tool_providers() -> void:
 
 	while not file_name.is_empty():
 		if (
-			file_name.ends_with(".gd")
-			and file_name != ".gd"
-			and file_name != "tool_provider_base.gd"
-			and file_name != "node_tool_provider_base.gd"
+				file_name.ends_with(".gd")
+				and file_name != ".gd"
+				and file_name != "tool_provider_base.gd"
+				and file_name != "node_tool_provider_base.gd"
 		):
 			var full_path := dir + file_name
 			var count := _try_load_tool_provider(full_path)

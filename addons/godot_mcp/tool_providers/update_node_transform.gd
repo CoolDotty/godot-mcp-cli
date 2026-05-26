@@ -50,12 +50,14 @@ func execute(params: Dictionary) -> Dictionary:
 			node.set_scale(Vector2(scl.x, scl.y))
 
 	ei.mark_scene_as_unsaved()
-	return _ok({
-		"success": true,
-		"node_path": np,
-		"updated": {
-			"position": pos != null,
-			"rotation": rot != null,
-			"scale": scl != null,
+	return _ok(
+		{
+			"success": true,
+			"node_path": np,
+			"updated": {
+				"position": pos != null,
+				"rotation": rot != null,
+				"scale": scl != null,
+			},
 		},
-	})
+	)

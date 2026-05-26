@@ -38,9 +38,9 @@ func execute(_params: Dictionary) -> Dictionary:
 			"project_path": project_path,
 			"godot_version": structured_version,
 			"current_scene": (
-				_get_editor_interface().get_edited_scene_root().scene_file_path
-				if _get_editor_interface() and _get_editor_interface().get_edited_scene_root()
-				else ""
+					_get_editor_interface().get_edited_scene_root().scene_file_path
+					if _get_editor_interface() and _get_editor_interface().get_edited_scene_root()
+					else ""
 			),
 		},
 	)

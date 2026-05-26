@@ -48,9 +48,9 @@ func execute(params: Dictionary) -> Dictionary:
 	var metadata = {
 		"path": path,
 		"language": (
-			"gdscript" if path.ends_with(".gd")
-			else "csharp" if path.ends_with(".cs")
-			else "unknown"
+				"gdscript" if path.ends_with(".gd")
+				else "csharp" if path.ends_with(".cs")
+				else "unknown"
 		),
 	}
 

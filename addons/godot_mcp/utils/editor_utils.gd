@@ -65,7 +65,7 @@ static func _tree_has_scene_root(root: TreeItem, scene_root_name: String) -> boo
 		var item_name = String(item.get_text(0))
 		var item_path = String(item.get_metadata(0))
 		if item_name == scene_root_name or item_path == scene_root_name \
-		or item_path.begins_with(scene_root_name + "/"):
+				or item_path.begins_with(scene_root_name + "/"):
 			return true
 
 		var child_item = item.get_first_child()
@@ -113,7 +113,7 @@ static func _collect_scene_tree_warning_entries_for_item(
 		for i in range(warnings.size()):
 			var warning_entry = warnings[i]
 			if typeof(warning_entry) == TYPE_DICTIONARY \
-			and warning_entry.get("path", "") == item_path:
+					and warning_entry.get("path", "") == item_path:
 				existing_index = i
 				break
 

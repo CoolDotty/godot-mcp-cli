@@ -168,11 +168,13 @@ func _on_done(eid: int) -> void:
 		tmr.queue_free()
 	remove_child(sn)
 	sn.queue_free()
-	p["_result"] = _ok({
-		"success": em.is_empty(),
-		"output": output,
-		"error": em if not em.is_empty() else "",
-	})
+	p["_result"] = _ok(
+		{
+			"success": em.is_empty(),
+			"output": output,
+			"error": em if not em.is_empty() else "",
+		},
+	)
 
 
 func _wait(eid: int) -> Dictionary:

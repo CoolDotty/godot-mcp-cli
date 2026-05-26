@@ -154,25 +154,25 @@ func _parse_property_value(value):
 
 	var str_val: String = value
 	if (
-		str_val.begins_with("Vector") or
-		str_val.begins_with("Transform") or
-		str_val.begins_with("Rect") or
-		str_val.begins_with("Color") or
-		str_val.begins_with("Quat") or
-		str_val.begins_with("Basis") or
-		str_val.begins_with("Plane") or
-		str_val.begins_with("AABB") or
-		str_val.begins_with("Projection") or
-		str_val.begins_with("Callable") or
-		str_val.begins_with("Signal") or
-		str_val.begins_with("PackedVector") or
-		str_val.begins_with("PackedString") or
-		str_val.begins_with("PackedFloat") or
-		str_val.begins_with("PackedInt") or
-		str_val.begins_with("PackedColor") or
-		str_val.begins_with("PackedByteArray") or
-		str_val.begins_with("Dictionary") or
-		str_val.begins_with("Array")
+			str_val.begins_with("Vector") or
+			str_val.begins_with("Transform") or
+			str_val.begins_with("Rect") or
+			str_val.begins_with("Color") or
+			str_val.begins_with("Quat") or
+			str_val.begins_with("Basis") or
+			str_val.begins_with("Plane") or
+			str_val.begins_with("AABB") or
+			str_val.begins_with("Projection") or
+			str_val.begins_with("Callable") or
+			str_val.begins_with("Signal") or
+			str_val.begins_with("PackedVector") or
+			str_val.begins_with("PackedString") or
+			str_val.begins_with("PackedFloat") or
+			str_val.begins_with("PackedInt") or
+			str_val.begins_with("PackedColor") or
+			str_val.begins_with("PackedByteArray") or
+			str_val.begins_with("Dictionary") or
+			str_val.begins_with("Array")
 	):
 		var expression = Expression.new()
 		var error = expression.parse(str_val, [])
@@ -188,7 +188,6 @@ func _mark_scene_modified() -> void:
 	var ei = _get_editor_interface()
 	if ei and ei.get_edited_scene_root():
 		ei.mark_scene_as_unsaved()
-
 
 # ---------------------------------------------------------------------------
 # Script file resolution
@@ -247,7 +246,6 @@ func _search_dir_for_script(dir: DirAccess, target: String) -> String:
 
 	dir.list_dir_end()
 	return ""
-
 
 # ---------------------------------------------------------------------------
 # Type coercion helpers

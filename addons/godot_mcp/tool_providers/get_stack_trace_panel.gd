@@ -9,8 +9,8 @@ func get_definition() -> ToolDefinition:
 		{
 			"type": "object",
 			"properties": {
-			"session_id": { "type": "number", "description": "Optional session ID" },
-		},
+				"session_id": { "type": "number", "description": "Optional session ID" },
+			},
 		},
 		"get_stack_trace_panel",
 	)
@@ -21,12 +21,14 @@ func execute(params: Dictionary) -> Dictionary:
 	if p and p.has_method("get_stack_trace_snapshot"):
 		var sid := int(params.get("session_id", -1))
 		return _ok(p.get_stack_trace_snapshot(sid))
-	return _ok({
-		"text": "",
-		"lines": [],
-		"line_count": 0,
-		"diagnostics": { "error": "publisher_unavailable" },
-	})
+	return _ok(
+		{
+			"text": "",
+			"lines": [],
+			"line_count": 0,
+			"diagnostics": { "error": "publisher_unavailable" },
+		},
+	)
 
 
 func _get_publisher():

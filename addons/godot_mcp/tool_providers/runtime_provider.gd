@@ -15,9 +15,9 @@ func get_definitions() -> Array:
 					"include_scripts": { "type": "boolean" },
 					"max_depth": { "type": "number" },
 					"timeout_ms": {
-					"type": "number",
-					"description": "Polling timeout in ms (default 3000)",
-				},
+						"type": "number",
+						"description": "Polling timeout in ms (default 3000)",
+					},
 				},
 			},
 			"get_runtime_scene_structure",
@@ -29,19 +29,19 @@ func get_definitions() -> Array:
 				"type": "object",
 				"properties": {
 					"expression": {
-					"type": "string",
-					"description": "GDScript expression to evaluate",
-				},
+						"type": "string",
+						"description": "GDScript expression to evaluate",
+					},
 					"code": { "type": "string", "description": "Alternative to expression" },
 					"node_path": { "type": "string", "description": "Optional context node path" },
 					"capture_prints": {
-					"type": "boolean",
-					"description": "Capture print() output (default: true)",
-				},
+						"type": "boolean",
+						"description": "Capture print() output (default: true)",
+					},
 					"timeout_ms": {
-					"type": "number",
-					"description": "Timeout in ms (default 3000)",
-				},
+						"type": "number",
+						"description": "Timeout in ms (default 3000)",
+					},
 				},
 				"required": [],
 			},
@@ -82,9 +82,9 @@ func _runtime_scene(params: Dictionary) -> Dictionary:
 	while Time.get_ticks_msec() <= dl:
 		if rb.has_new_runtime_snapshot(sid, bv):
 			var opts := {
-			"include_properties": params.get("include_properties", false),
-			"include_scripts": params.get("include_scripts", false),
-		}
+				"include_properties": params.get("include_properties", false),
+				"include_scripts": params.get("include_scripts", false),
+			}
 			snap = rb.build_runtime_snapshot(sid, opts)
 			if not snap.is_empty():
 				break
@@ -133,14 +133,15 @@ func _eval_runtime(params: Dictionary) -> Dictionary:
 	while Time.get_ticks_msec() <= dl:
 		if rb.has_eval_result(sid, rid):
 			resp = rb.take_eval_result(sid, rid)
-			;
-			break
+			;break
 		await get_tree().process_frame
 	if resp.is_empty():
-		return _ok({
-			"error": "Timed out waiting for runtime evaluation.",
-			"hint": "Ensure the running project registers mcp_eval debugger capture.",
-		})
+		return _ok(
+			{
+				"error": "Timed out waiting for runtime evaluation.",
+				"hint": "Ensure the running project registers mcp_eval debugger capture.",
+			},
+		)
 	if not resp.get("success", true) and not resp.has("error"):
 		resp["error"] = "Runtime evaluation failed."
 	return _ok(resp)

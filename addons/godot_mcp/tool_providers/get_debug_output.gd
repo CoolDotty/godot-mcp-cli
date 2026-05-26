@@ -9,8 +9,8 @@ func get_definition() -> ToolDefinition:
 		{
 			"type": "object",
 			"properties": {
-			"max_lines": { "type": "number", "description": "Max lines (default 100)" },
-		},
+				"max_lines": { "type": "number", "description": "Max lines (default 100)" },
+			},
 		},
 		"get_debug_output",
 	)
