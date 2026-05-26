@@ -5,6 +5,13 @@ All notable changes to this project will be documented in this file.
 ## Unreleased
 
 ### Added
+- `rescan_filesystem` tool to trigger filesystem reimport from MCP — supports reimporting
+  specific paths via `reimport_files()`, full filesystem scans, and script source re-scanning
+  via `scan_sources()`. Waits for scan completion and returns timing diagnostics.
+- `run_project`, `stop_running_project`, `run_current_scene`, `run_specific_scene` tools —
+  expose scene execution control to MCP (were already implemented but not registered as tools)
+- `reload_project` and `reload_scene` tools — restart editor or reload scene from disk
+- `list_assets_by_type` and `list_project_files` tools — expose asset listing to MCP
 - `get_node_warnings` tool to inspect the current scene tree for node configuration warnings
   (configuration warnings shown on nodes in the Scene tree dock)
 - `EditorUtils.collect_scene_tree_warning_entries()` utility for scanning the Scene Tree dock UI
@@ -13,6 +20,8 @@ All notable changes to this project will be documented in this file.
   and formatting `.gd` files — `format_gdscript` now supports glob patterns like `*` or `**/*.gd`
 
 ### Fixed
+- **`rescan_filesystem` was invisible to MCP clients**: The command was implemented and handled by the command processor but never registered as a discoverable MCP tool. Now properly registered with `paths` and `sources` parameters.
+- **`rescan_filesystem` now actually reimports**: Previously only called bare `scan()` with no completion wait, no `reimport_files()` support, and no `scan_sources()`. Now uses all three APIs with scan-completion polling and detailed diagnostics.
 - **HTTP server stays responsive when editor window loses focus**: Replaced `_process(delta)` polling
   with a `Timer` node so TCP connection acceptance and request handling continues even when Godot
   throttles the main loop for unfocused windows

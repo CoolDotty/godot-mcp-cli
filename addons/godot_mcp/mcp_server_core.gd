@@ -605,6 +605,85 @@ func _register_builtin_tools() -> void:
 		),
 	)
 
+	register_tool(
+		ToolDefinition.new(
+			"run_project",
+			"Launch the project's main scene (same as F5).",
+			{
+				"type": "object",
+				"properties": { },
+			},
+			"run_project",
+		),
+	)
+
+	register_tool(
+		ToolDefinition.new(
+			"stop_running_project",
+			"Stop the currently running project.",
+			{
+				"type": "object",
+				"properties": { },
+			},
+			"stop_running_project",
+		),
+	)
+
+	register_tool(
+		ToolDefinition.new(
+			"run_current_scene",
+			"Play the current scene in the editor (same as F6).",
+			{
+				"type": "object",
+				"properties": { },
+			},
+			"run_current_scene",
+		),
+	)
+
+	register_tool(
+		ToolDefinition.new(
+			"run_specific_scene",
+			"Run a specific scene by path.",
+			{
+				"type": "object",
+				"properties": {
+					"scene_path": { "type": "string", "description": "Path to the scene to run" },
+				},
+				"required": ["scene_path"],
+			},
+			"run_specific_scene",
+		),
+	)
+
+	register_tool(
+		ToolDefinition.new(
+			"reload_project",
+			"Restart the Godot editor (reload the entire project).",
+			{
+				"type": "object",
+				"properties": {
+					"save": { "type": "boolean", "description": "Save before restarting (default: true)" },
+				},
+			},
+			"reload_project",
+		),
+	)
+
+	register_tool(
+		ToolDefinition.new(
+			"reload_scene",
+			"Reload the current scene from disk, discarding unsaved changes.",
+			{
+				"type": "object",
+				"properties": {
+					"scene_path": { "type": "string", "description": "Optional specific scene path to reload (default: current scene)" },
+				},
+			},
+			"reload_scene",
+		),
+	)
+
 	# --- Editor Tools ---
 	register_tool(
 		ToolDefinition.new(
@@ -629,6 +708,21 @@ func _register_builtin_tools() -> void:
 				},
 			},
 			"get_node_warnings",
+		),
+	)
+
+	register_tool(
+		ToolDefinition.new(
+			"rescan_filesystem",
+			"Rescan the project filesystem and reimport changed assets. Use when files have been modified externally (e.g. by AI writing scripts, textures) and the editor needs to pick up the changes.",
+			{
+				"type": "object",
+				"properties": {
+					"paths": { "type": "array", "items": { "type": "string" }, "description": "Optional list of specific file paths to reimport (e.g. ['res://icon.svg', 'res://scenes/main.tscn'])" },
+					"sources": { "type": "boolean", "description": "Also re-scan script sources for import changes (default: true)" },
+				},
+			},
+			"rescan_filesystem",
 		),
 	)
 
@@ -721,6 +815,35 @@ func _register_builtin_tools() -> void:
 				},
 			},
 			"format_all_gdscript",
+		),
+	)
+
+	register_tool(
+		ToolDefinition.new(
+			"list_assets_by_type",
+			"List project assets filtered by type (scripts, scenes, images, audio, fonts, models, shaders, resources, all).",
+			{
+				"type": "object",
+				"properties": {
+					"type": { "type": "string", "description": "Asset type filter: scripts, scenes, images, audio, fonts, models, shaders, resources, or all" },
+				},
+				"required": ["type"],
+			},
+			"list_assets_by_type",
+		),
+	)
+
+	register_tool(
+		ToolDefinition.new(
+			"list_project_files",
+			"List project files, optionally filtered by extension.",
+			{
+				"type": "object",
+				"properties": {
+					"extensions": { "type": "array", "items": { "type": "string" }, "description": "File extensions to filter by (e.g. ['.gd', '.tscn'])" },
+				},
+			},
+			"list_project_files",
 		),
 	)
 
