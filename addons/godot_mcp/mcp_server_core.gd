@@ -684,6 +684,30 @@ func _register_builtin_tools() -> void:
 		),
 	)
 
+	register_tool(
+		ToolDefinition.new(
+			"get_project_structure",
+			"Get a summary of the project file structure (directories and file counts by extension).",
+			{
+				"type": "object",
+				"properties": { },
+			},
+			"get_project_structure",
+		),
+	)
+
+	register_tool(
+		ToolDefinition.new(
+			"list_project_resources",
+			"List project resources categorized by type (scenes, scripts, textures, audio, models, resources).",
+			{
+				"type": "object",
+				"properties": { },
+			},
+			"list_project_resources",
+		),
+	)
+
 	# --- Editor Tools ---
 	register_tool(
 		ToolDefinition.new(
@@ -859,6 +883,586 @@ func _register_builtin_tools() -> void:
 				},
 			},
 			"get_debug_output",
+		),
+	)
+
+	# --- Scene Creation/Deletion ---
+	register_tool(
+		ToolDefinition.new(
+			"create_scene",
+			"Create a new scene file.",
+			{
+				"type": "object",
+				"properties": {
+					"path": { "type": "string", "description": "Path for the new scene file (e.g. res://scenes/level.tscn)" },
+					"root_node_type": { "type": "string", "description": "Root node class name (e.g. Node2D, Node3D, Control). Default: Node" },
+				},
+				"required": ["path"],
+			},
+			"create_scene",
+		),
+	)
+
+	register_tool(
+		ToolDefinition.new(
+			"delete_scene",
+			"Delete a scene file from the project. Cannot delete the currently open scene.",
+			{
+				"type": "object",
+				"properties": {
+					"path": { "type": "string", "description": "Path to the scene file to delete" },
+				},
+				"required": ["path"],
+			},
+			"delete_scene",
+		),
+	)
+
+	register_tool(
+		ToolDefinition.new(
+			"get_current_scene",
+			"Get information about the currently open scene.",
+			{
+				"type": "object",
+				"properties": { },
+			},
+			"get_current_scene",
+		),
+	)
+
+	# --- Script Creation/Editing ---
+	register_tool(
+		ToolDefinition.new(
+			"create_script",
+			"Create a new script file and optionally attach it to a node.",
+			{
+				"type": "object",
+				"properties": {
+					"script_path": { "type": "string", "description": "Path for the new script (e.g. res://scripts/player.gd)" },
+					"content": { "type": "string", "description": "Script source code content" },
+					"node_path": { "type": "string", "description": "Optional node path to attach the script to" },
+				},
+				"required": ["script_path", "content"],
+			},
+			"create_script",
+		),
+	)
+
+	register_tool(
+		ToolDefinition.new(
+			"edit_script",
+			"Edit a script's source code by overwriting the file content.",
+			{
+				"type": "object",
+				"properties": {
+					"script_path": { "type": "string", "description": "Path to the script file to edit" },
+					"content": { "type": "string", "description": "New source code content for the script" },
+				},
+				"required": ["script_path", "content"],
+			},
+			"edit_script",
+		),
+	)
+
+	register_tool(
+		ToolDefinition.new(
+			"get_script_metadata",
+			"Get metadata about a script (class_name, extends, methods, signals).",
+			{
+				"type": "object",
+				"properties": {
+					"path": { "type": "string", "description": "Path to the script file" },
+				},
+				"required": ["path"],
+			},
+			"get_script_metadata",
+		),
+	)
+
+	register_tool(
+		ToolDefinition.new(
+			"get_current_script",
+			"Get the currently edited script in the script editor.",
+			{
+				"type": "object",
+				"properties": { },
+			},
+			"get_current_script",
+		),
+	)
+
+	# --- Editor Tools ---
+	register_tool(
+		ToolDefinition.new(
+			"get_selected_node",
+			"Get the currently selected node in the editor with its properties.",
+			{
+				"type": "object",
+				"properties": { },
+			},
+			"get_selected_node",
+		),
+	)
+
+	register_tool(
+		ToolDefinition.new(
+			"create_resource",
+			"Create a new resource file (e.g. Material, Shader, etc.).",
+			{
+				"type": "object",
+				"properties": {
+					"resource_type": { "type": "string", "description": "Resource class name (e.g. StandardMaterial3D, ShaderMaterial)" },
+					"resource_path": { "type": "string", "description": "Path for the new resource file" },
+					"properties": { "type": "object", "description": "Optional initial properties" },
+				},
+				"required": ["resource_type", "resource_path"],
+			},
+			"create_resource",
+		),
+	)
+
+	# --- Runtime / Enhanced Tools ---
+	register_tool(
+		ToolDefinition.new(
+			"get_runtime_scene_structure",
+			"Snapshot the live scene tree from a running game via the debugger.",
+			{
+				"type": "object",
+				"properties": {
+					"include_properties": { "type": "boolean", "description": "Include node properties in the snapshot" },
+					"include_scripts": { "type": "boolean", "description": "Include script info in the snapshot" },
+					"max_depth": { "type": "number", "description": "Maximum depth to traverse" },
+					"timeout_ms": { "type": "number", "description": "Timeout in milliseconds (default: 2000)" },
+				},
+			},
+			"get_runtime_scene_structure",
+		),
+	)
+
+	register_tool(
+		ToolDefinition.new(
+			"evaluate_runtime",
+			"Evaluate a GDScript expression on the running game via the debugger.",
+			{
+				"type": "object",
+				"properties": {
+					"expression": { "type": "string", "description": "GDScript expression to evaluate (e.g. player.health)" },
+					"context_path": { "type": "string", "description": "Optional node path to use as evaluation context" },
+					"capture_prints": { "type": "boolean", "description": "Capture print() output during evaluation (default: true)" },
+					"timeout_ms": { "type": "number", "description": "Timeout in milliseconds (default: 2000)" },
+				},
+				"required": ["expression"],
+			},
+			"evaluate_runtime",
+		),
+	)
+
+	register_tool(
+		ToolDefinition.new(
+			"update_node_transform",
+			"Adjust a node's transform (position, rotation, scale) in the editor.",
+			{
+				"type": "object",
+				"properties": {
+					"node_path": { "type": "string", "description": "Path to the node in the current scene" },
+					"position": { "type": "array", "items": { "type": "number" }, "description": "New position as [x, y]" },
+					"rotation": { "type": "number", "description": "New rotation in radians" },
+					"scale": { "type": "array", "items": { "type": "number" }, "description": "New scale as [x, y]" },
+				},
+				"required": ["node_path"],
+			},
+			"update_node_transform",
+		),
+	)
+
+	register_tool(
+		ToolDefinition.new(
+			"get_editor_errors",
+			"Read the Errors tab of the bottom panel in the editor.",
+			{
+				"type": "object",
+				"properties": { },
+			},
+			"get_editor_errors",
+		),
+	)
+
+	register_tool(
+		ToolDefinition.new(
+			"clear_debug_output",
+			"Clear the Output panel in the editor.",
+			{
+				"type": "object",
+				"properties": { },
+			},
+			"clear_debug_output",
+		),
+	)
+
+	register_tool(
+		ToolDefinition.new(
+			"clear_editor_errors",
+			"Clear the Errors tab in the editor.",
+			{
+				"type": "object",
+				"properties": { },
+			},
+			"clear_editor_errors",
+		),
+	)
+
+	register_tool(
+		ToolDefinition.new(
+			"subscribe_debug_output",
+			"Start live streaming of debug output to this client.",
+			{
+				"type": "object",
+				"properties": { },
+			},
+			"subscribe_debug_output",
+		),
+	)
+
+	register_tool(
+		ToolDefinition.new(
+			"unsubscribe_debug_output",
+			"Stop live streaming of debug output for this client.",
+			{
+				"type": "object",
+				"properties": { },
+			},
+			"unsubscribe_debug_output",
+		),
+	)
+
+	# --- Stack Trace Tools ---
+	register_tool(
+		ToolDefinition.new(
+			"get_stack_trace_panel",
+			"Capture the Stack Trace panel text plus parsed frames from the debugger.",
+			{
+				"type": "object",
+				"properties": {
+					"session_id": { "type": "number", "description": "Optional debugger session ID" },
+				},
+			},
+			"get_stack_trace_panel",
+		),
+	)
+
+	register_tool(
+		ToolDefinition.new(
+			"get_stack_frames_panel",
+			"Return structured stack frames from the debugger bridge.",
+			{
+				"type": "object",
+				"properties": {
+					"session_id": { "type": "number", "description": "Optional debugger session ID" },
+					"refresh": { "type": "boolean", "description": "Force refresh from the debugger (default: false)" },
+				},
+			},
+			"get_stack_frames_panel",
+		),
+	)
+
+	# --- Debugger Control Tools ---
+	register_tool(
+		ToolDefinition.new(
+			"debugger_set_breakpoint",
+			"Set a breakpoint in a script at the specified line.",
+			{
+				"type": "object",
+				"properties": {
+					"script_path": { "type": "string", "description": "Path to the script file" },
+					"line": { "type": "number", "description": "Line number for the breakpoint" },
+				},
+				"required": ["script_path", "line"],
+			},
+			"debugger_set_breakpoint",
+		),
+	)
+
+	register_tool(
+		ToolDefinition.new(
+			"debugger_remove_breakpoint",
+			"Remove a breakpoint from a script at the specified line.",
+			{
+				"type": "object",
+				"properties": {
+					"script_path": { "type": "string", "description": "Path to the script file" },
+					"line": { "type": "number", "description": "Line number of the breakpoint to remove" },
+				},
+				"required": ["script_path", "line"],
+			},
+			"debugger_remove_breakpoint",
+		),
+	)
+
+	register_tool(
+		ToolDefinition.new(
+			"debugger_get_breakpoints",
+			"List all breakpoints currently set.",
+			{
+				"type": "object",
+				"properties": { },
+			},
+			"debugger_get_breakpoints",
+		),
+	)
+
+	register_tool(
+		ToolDefinition.new(
+			"debugger_clear_all_breakpoints",
+			"Clear all breakpoints.",
+			{
+				"type": "object",
+				"properties": { },
+			},
+			"debugger_clear_all_breakpoints",
+		),
+	)
+
+	register_tool(
+		ToolDefinition.new(
+			"debugger_pause_execution",
+			"Pause the running project.",
+			{
+				"type": "object",
+				"properties": { },
+			},
+			"debugger_pause_execution",
+		),
+	)
+
+	register_tool(
+		ToolDefinition.new(
+			"debugger_resume_execution",
+			"Resume a paused project.",
+			{
+				"type": "object",
+				"properties": { },
+			},
+			"debugger_resume_execution",
+		),
+	)
+
+	register_tool(
+		ToolDefinition.new(
+			"debugger_step_over",
+			"Step over the current line in the debugger.",
+			{
+				"type": "object",
+				"properties": { },
+			},
+			"debugger_step_over",
+		),
+	)
+
+	register_tool(
+		ToolDefinition.new(
+			"debugger_step_into",
+			"Step into a function call in the debugger.",
+			{
+				"type": "object",
+				"properties": { },
+			},
+			"debugger_step_into",
+		),
+	)
+
+	register_tool(
+		ToolDefinition.new(
+			"debugger_get_call_stack",
+			"Get the current call stack from a paused debugger session.",
+			{
+				"type": "object",
+				"properties": {
+					"session_id": { "type": "number", "description": "Optional debugger session ID" },
+				},
+			},
+			"debugger_get_call_stack",
+		),
+	)
+
+	register_tool(
+		ToolDefinition.new(
+			"debugger_get_current_state",
+			"Get the current debugger state (active sessions, running status, etc.).",
+			{
+				"type": "object",
+				"properties": { },
+			},
+			"debugger_get_current_state",
+		),
+	)
+
+	register_tool(
+		ToolDefinition.new(
+			"debugger_enable_events",
+			"Enable debugger event notifications for this client (breakpoint hits, pauses, etc.).",
+			{
+				"type": "object",
+				"properties": { },
+			},
+			"debugger_enable_events",
+		),
+	)
+
+	register_tool(
+		ToolDefinition.new(
+			"debugger_disable_events",
+			"Disable debugger event notifications for this client.",
+			{
+				"type": "object",
+				"properties": { },
+			},
+			"debugger_disable_events",
+		),
+	)
+
+	# --- Input Simulation Tools ---
+	register_tool(
+		ToolDefinition.new(
+			"simulate_action_press",
+			"Press an input action in the running project.",
+			{
+				"type": "object",
+				"properties": {
+					"action": { "type": "string", "description": "Input action name (e.g. ui_accept, move_left)" },
+					"strength": { "type": "number", "description": "Action strength between 0.0 and 1.0 (default: 1.0)" },
+				},
+				"required": ["action"],
+			},
+			"simulate_action_press",
+		),
+	)
+
+	register_tool(
+		ToolDefinition.new(
+			"simulate_action_release",
+			"Release an input action in the running project.",
+			{
+				"type": "object",
+				"properties": {
+					"action": { "type": "string", "description": "Input action name to release" },
+				},
+				"required": ["action"],
+			},
+			"simulate_action_release",
+		),
+	)
+
+	register_tool(
+		ToolDefinition.new(
+			"simulate_action_tap",
+			"Tap an input action (press + release) in the running project.",
+			{
+				"type": "object",
+				"properties": {
+					"action": { "type": "string", "description": "Input action name to tap" },
+					"duration_ms": { "type": "number", "description": "How long to hold before releasing (default: 100)" },
+				},
+				"required": ["action"],
+			},
+			"simulate_action_tap",
+		),
+	)
+
+	register_tool(
+		ToolDefinition.new(
+			"simulate_mouse_click",
+			"Simulate a mouse click in the running project.",
+			{
+				"type": "object",
+				"properties": {
+					"x": { "type": "number", "description": "X position for the click" },
+					"y": { "type": "number", "description": "Y position for the click" },
+					"button": { "type": "string", "description": "Mouse button: left, right, or middle (default: left)" },
+					"double_click": { "type": "boolean", "description": "Perform a double-click (default: false)" },
+				},
+			},
+			"simulate_mouse_click",
+		),
+	)
+
+	register_tool(
+		ToolDefinition.new(
+			"simulate_mouse_move",
+			"Move the mouse cursor in the running project.",
+			{
+				"type": "object",
+				"properties": {
+					"x": { "type": "number", "description": "Target X position" },
+					"y": { "type": "number", "description": "Target Y position" },
+				},
+				"required": ["x", "y"],
+			},
+			"simulate_mouse_move",
+		),
+	)
+
+	register_tool(
+		ToolDefinition.new(
+			"simulate_drag",
+			"Click and drag the mouse from one position to another.",
+			{
+				"type": "object",
+				"properties": {
+					"start_x": { "type": "number", "description": "Starting X position" },
+					"start_y": { "type": "number", "description": "Starting Y position" },
+					"end_x": { "type": "number", "description": "Ending X position" },
+					"end_y": { "type": "number", "description": "Ending Y position" },
+					"duration_ms": { "type": "number", "description": "Duration of the drag in milliseconds (default: 200)" },
+					"steps": { "type": "number", "description": "Number of intermediate steps (default: 10)" },
+					"button": { "type": "string", "description": "Mouse button: left, right, or middle (default: left)" },
+				},
+				"required": ["start_x", "start_y", "end_x", "end_y"],
+			},
+			"simulate_drag",
+		),
+	)
+
+	register_tool(
+		ToolDefinition.new(
+			"simulate_key_press",
+			"Simulate a keyboard key press in the running project.",
+			{
+				"type": "object",
+				"properties": {
+					"key": { "type": "string", "description": "Key name to press (e.g. A, Space, Escape)" },
+					"duration_ms": { "type": "number", "description": "How long to hold the key (default: 100)" },
+					"modifiers": { "type": "object", "description": "Modifier keys (e.g. {ctrl: true, shift: false})" },
+				},
+				"required": ["key"],
+			},
+			"simulate_key_press",
+		),
+	)
+
+	register_tool(
+		ToolDefinition.new(
+			"simulate_input_sequence",
+			"Execute a timed sequence of input actions with precise timing.",
+			{
+				"type": "object",
+				"properties": {
+					"sequence": { "type": "array", "description": "Array of input step objects, each with a type and timing" },
+				},
+				"required": ["sequence"],
+			},
+			"simulate_input_sequence",
+		),
+	)
+
+	register_tool(
+		ToolDefinition.new(
+			"get_input_actions",
+			"List all available input actions defined in the project's Input Map.",
+			{
+				"type": "object",
+				"properties": { },
+			},
+			"get_input_actions",
 		),
 	)
 
