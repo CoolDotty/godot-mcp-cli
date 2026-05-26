@@ -145,8 +145,10 @@ func stop():
 	for client in self._clients:
 		client.disconnect_from_host()
 	self._clients.clear()
-	self._server.stop()
-	_poll_timer.stop()
+	if self._server:
+		self._server.stop()
+	if _poll_timer:
+		_poll_timer.stop()
 	_print_debug("Server stopped.")
 
 

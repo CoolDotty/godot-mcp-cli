@@ -1,24 +1,35 @@
 @tool
-## Tool provider for "get_stack_frames_panel" — Return structured stack frames from the debugger bridge.
 class_name ToolProviderGetStackFramesPanel
-extends RefCounted
+extends MCPToolProviderBase
 
 func get_definition() -> ToolDefinition:
 	return ToolDefinition.new(
 		"get_stack_frames_panel",
-		"Return structured stack frames from the debugger bridge.",
+		"Get stack frames panel contents.",
 		{
 			"type": "object",
 			"properties": {
-				"session_id": {
-					"type": "number",
-					"description": "Optional debugger session ID",
-				},
-				"refresh": {
-					"type": "boolean",
-					"description": "Force refresh from the debugger (default: false)",
-				},
-			},
+			"session_id": { "type": "number", "description": "Optional session ID" },
+		},
 		},
 		"get_stack_frames_panel",
 	)
+
+
+func execute(params: Dictionary) -> Dictionary:
+	var p = _get_publisher()
+	if p and p.has_method("get_stack_frames_snapshot"):
+		var sid := int(params.get("session_id", -1))
+		return _ok(p.get_stack_frames_snapshot(sid))
+	return _ok({
+		"text": "",
+		"lines": [],
+		"line_count": 0,
+		"diagnostics": { "error": "publisher_unavailable" },
+	})
+
+
+func _get_publisher():
+	if Engine.has_meta("MCPDebugOutputPublisher"):
+		return Engine.get_meta("MCPDebugOutputPublisher")
+	return null

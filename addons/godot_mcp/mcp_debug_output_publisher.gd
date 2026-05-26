@@ -362,7 +362,9 @@ func _locate_control_with_scoring(scoring_func: Callable, threshold: int) -> Dic
 					var pms := "valid" if valid_main else "invalid"
 					summary.append("plugin_main_screen=%s" % pms)
 					if valid_main:
-						_register_control_root(search_roots, root_labels, root_ids, main_screen, "main_screen")
+						_register_control_root(
+						search_roots, root_labels, root_ids, main_screen, "main_screen",
+					)
 				else:
 					summary.append("plugin_main_screen=missing")
 			else:
@@ -379,7 +381,9 @@ func _locate_control_with_scoring(scoring_func: Callable, threshold: int) -> Dic
 		var str_val := "valid" if valid_root else "invalid"
 		summary.append("scene_tree_root=%s" % str_val)
 		if valid_root:
-			_register_control_root(search_roots, root_labels, root_ids, tree_root, "scene_tree_root")
+			_register_control_root(
+					search_roots, root_labels, root_ids, tree_root, "scene_tree_root",
+				)
 	else:
 		summary.append("scene_tree=null")
 
@@ -484,15 +488,17 @@ func _search_control_tree(root: Node, scoring_func: Callable = Callable()) -> Di
 	}
 
 
-func _register_control_root(search_roots: Array, root_labels: Dictionary, root_ids: Dictionary, node: Node, label: String) -> void:
+func _register_control_root(\
+		roots: Array, labels: Dictionary, ids: Dictionary, node: Node, label: String\
+	) -> void:
 	if not is_instance_valid(node):
 		return
 	var id := node.get_instance_id()
-	if root_ids.has(id):
+	if ids.has(id):
 		return
-	root_ids[id] = true
-	search_roots.append(node)
-	root_labels[id] = label
+	ids[id] = true
+	roots.append(node)
+	labels[id] = label
 
 
 func _summarize_summary_value(text: String) -> String:
@@ -1229,7 +1235,10 @@ func _find_stack_trace_control(root: Node) -> Dictionary:
 						var tab_control: Control = null
 						if tab_container.has_method("get_tab_control"):
 							tab_control = tab_container.get_tab_control(i)
-						if not is_instance_valid(tab_control) and i < tab_container.get_child_count():
+						if (
+							not is_instance_valid(tab_control)
+							and i < tab_container.get_child_count()
+						):
 							var child = tab_container.get_child(i)
 							if child is Control:
 								tab_control = child
@@ -1251,11 +1260,17 @@ func _find_stack_trace_control(root: Node) -> Dictionary:
 			var control_score := _score_stack_trace_candidate(candidate)
 			if control_score >= STACK_TRACE_SCORE_THRESHOLD:
 				var matched_control: Control = candidate
-				var tree_control: Tree = candidate if candidate is Tree else _find_descendant_tree(candidate)
+				var tree_control: Tree = (
+					candidate if candidate is Tree
+					else _find_descendant_tree(candidate)
+				)
 				var info := {
 					"control": matched_control,
 					"score": control_score,
-					"summary": "score=%d name=%s class=%s visited=%d" % [control_score, candidate.name, candidate.get_class(), visited],
+					"summary": (
+						"score=%d n=%s c=%s v=%d"
+						% [control_score, candidate.name, candidate.get_class(), visited]
+					),
 				}
 				if tree_control:
 					info["tree"] = tree_control
@@ -1323,11 +1338,17 @@ func _find_stack_frames_control(root: Node) -> Dictionary:
 			var control_score := _score_stack_frames_candidate(candidate)
 			if control_score >= STACK_FRAMES_SCORE_THRESHOLD:
 				var matched_control: Control = candidate
-				var tree_control: Tree = candidate if candidate is Tree else _find_descendant_tree(candidate)
+				var tree_control: Tree = (
+					candidate if candidate is Tree
+					else _find_descendant_tree(candidate)
+				)
 				var info := {
 					"control": matched_control,
 					"score": control_score,
-					"summary": "score=%d name=%s class=%s visited=%d" % [control_score, candidate.name, candidate.get_class(), visited],
+					"summary": (
+						"score=%d n=%s c=%s v=%d"
+						% [control_score, candidate.name, candidate.get_class(), visited]
+					),
 				}
 				if tree_control:
 					info["tree"] = tree_control
@@ -1452,16 +1473,16 @@ func _collect_stack_tree_frames(tree: Tree) -> Array:
 	var item := root.get_first_child()
 	var fallback_index := 0
 	while item:
-		frames.append(_build_stack_frame_from_item(item, tree.columns, fallback_index))
+		frames.append(_build_frame_from_item(item, tree.columns, fallback_index))
 		fallback_index += 1
 		item = item.get_next()
 
 	return frames
 
 
-func _build_stack_frame_from_item(item: TreeItem, column_count: int, fallback_index: int) -> Dictionary:
+func _build_frame_from_item(item: TreeItem, col_count: int, fallback_idx: int) -> Dictionary:
 	var columns: Array = []
-	for col in range(column_count):
+	for col in range(col_count):
 		columns.append(String(item.get_text(col)))
 
 	var function_name := ""
@@ -1485,7 +1506,7 @@ func _build_stack_frame_from_item(item: TreeItem, column_count: int, fallback_in
 				line_number = int(potential_line)
 				script_path = split[0]
 
-	var index_value := fallback_index
+	var index_value := fallback_idx
 	if columns.size() > 0:
 		var index_text := String(columns[0]).strip_edges()
 		if index_text.begins_with("#"):
@@ -1610,7 +1631,11 @@ func _unwrap_tab_content(control: Control) -> Control:
 func _is_text_display_control(control: Control) -> bool:
 	if not is_instance_valid(control):
 		return false
-	if control.is_class("TextEdit") or control.is_class("CodeEdit") or control.is_class("RichTextLabel"):
+	if (
+			control.is_class("TextEdit")
+			or control.is_class("CodeEdit")
+			or control.is_class("RichTextLabel")
+		):
 		return true
 	return false
 

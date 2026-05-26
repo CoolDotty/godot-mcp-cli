@@ -4,7 +4,7 @@ extends EditorPlugin
 var http_server: HttpServer = null
 var mcp_sse: MCPSse = null
 var mcp_core: MCPServerCore = null
-var command_handler = null # Command handler reference
+
 var panel = null # Reference to the MCP panel
 var runtime_debugger_bridge = null # Runtime scene inspection bridge
 var debugger_bridge = null # Debugger control bridge
@@ -39,21 +39,8 @@ func _enter_tree():
 	mcp_core.name = "MCPServerCore"
 	add_child(mcp_core)
 
-	# Initialize the command handler
-	print("Creating command handler...")
-	var handler_script = load("res://addons/godot_mcp/command_handler.gd")
-	if handler_script:
-		command_handler = Node.new()
-		command_handler.set_script(handler_script)
-		command_handler.name = "CommandHandler"
-		add_child(command_handler)
-
-		# Wire command handler to MCP core (replaces old websocket references)
-		mcp_core.set_command_handler(command_handler)
-		# Bind SSE session lifecycle to core — resets init state on disconnect
-		mcp_core.bind_sse(mcp_sse)
-	else:
-		printerr("Failed to load command handler script!")
+	# Bind SSE session lifecycle to core — resets init state on disconnect
+	mcp_core.bind_sse(mcp_sse)
 
 	# Initialize the HTTP server with GodotTPD
 	http_server = HttpServer.new()
@@ -89,6 +76,12 @@ func _ready():
 
 
 func _auto_start_server(attempt: int = 0):
+	# Check if running in --check-only mode — exit cleanly instead of starting the server
+	if OS.get_cmdline_args().has("--check-only"):
+		print("✓ MCP server: --check-only detected, exiting cleanly")
+		get_tree().quit()
+		return
+
 	# Use a timer delay instead of await process_frame — more reliable in the editor
 	await get_tree().create_timer(0.5).timeout
 
@@ -164,11 +157,6 @@ func _exit_tree():
 		mcp_sse.clear_all()
 		mcp_sse.queue_free()
 		mcp_sse = null
-
-	# Clean up command handler
-	if command_handler:
-		command_handler.queue_free()
-		command_handler = null
 
 	# Clean up HTTP server
 	if http_server:

@@ -1,15 +1,28 @@
 @tool
-## Tool provider for "subscribe_debug_output" — Start live streaming of debug output to this client.
 class_name ToolProviderSubscribeDebugOutput
-extends RefCounted
+extends MCPToolProviderBase
 
 func get_definition() -> ToolDefinition:
 	return ToolDefinition.new(
 		"subscribe_debug_output",
-		"Start live streaming of debug output to this client.",
+		"Subscribe to live debug output streaming.",
 		{
 			"type": "object",
 			"properties": { },
 		},
 		"subscribe_debug_output",
 	)
+
+
+func execute(_params: Dictionary) -> Dictionary:
+	var p = _get_publisher()
+	if p == null:
+		return _error("Debug output publisher unavailable.")
+	p.subscribe(-1) # All clients
+	return _ok({ "subscribed": true, "message": "Live debug output streaming enabled." })
+
+
+func _get_publisher():
+	if Engine.has_meta("MCPDebugOutputPublisher"):
+		return Engine.get_meta("MCPDebugOutputPublisher")
+	return null

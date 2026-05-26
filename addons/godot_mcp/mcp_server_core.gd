@@ -2,60 +2,10 @@
 ## MCP Protocol Core — JSON-RPC 2.0 engine, tool/resource registry.
 ##
 ## Handles the MCP protocol lifecycle: initialize, tools/list,
-## tools/call, resources/list, resources/read. Routes tool calls
-## to the existing command processor chain via a response broker.
+## tools/call, resources/list, resources/read. Tool calls are routed
+## directly to tool provider instances (self-contained schema + logic).
 class_name MCPServerCore
 extends Node
-
-# ---------------------------------------------------------------------------
-# Response Broker — captures responses from command processors
-# ---------------------------------------------------------------------------
-## Acts as a fake `_websocket_server` for command processors so they
-## can write their responses into a dict keyed by commandId.
-class ResponseBroker:
-	extends RefCounted
-
-	var _pending: Dictionary = { } # commandId → response dict
-	var _completed: Dictionary = { } # commandId → response dict (after retrieval)
-
-
-	func send_response(_client_id: int, response: Dictionary) -> int:
-		var cmd_id: String = response.get("commandId", "")
-		if cmd_id:
-			_pending[cmd_id] = response.duplicate(true)
-		return OK
-
-
-	func send_event(_client_id: int, _event: Dictionary) -> int:
-		return OK
-
-
-	func broadcast_event(_event: Dictionary) -> void:
-		pass
-
-
-	## Wait up to `timeout` seconds for a response with the given commandId.
-	func wait_for_response(cmd_id: String, timeout: float = 10.0) -> Variant:
-		var elapsed: float = 0.0
-		while elapsed < timeout:
-			if _pending.has(cmd_id):
-				var resp = _pending[cmd_id]
-				_pending.erase(cmd_id)
-				_completed[cmd_id] = resp
-				return resp
-			OS.delay_msec(10)
-			elapsed += 0.01
-		return null
-
-
-	## Non-blocking check for a pending response.
-	func poll_response(cmd_id: String) -> Variant:
-		if _pending.has(cmd_id):
-			var resp = _pending[cmd_id]
-			_pending.erase(cmd_id)
-			_completed[cmd_id] = resp
-			return resp
-		return null
 
 # ---------------------------------------------------------------------------
 # Signals
@@ -77,61 +27,43 @@ var server_capabilities: Dictionary = {
 }
 
 # Tracks which SSE client performed the initialize (for per-session reset).
-# -1 means no client has initialized. When an SSE client disconnects,
-# we only reset is_initialized if the disconnecting client was the one
-# that initialized. This prevents one client's disconnect from tearing
-# down another client's session.
 var _initialized_client_id: int = -1
 
-# Internal
-var _command_handler = null
-var _response_broker: ResponseBroker = null
+# Internal — tool registry
+var _command_handler = null # Kept for backward compat during transition
 var _tools: Array[ToolDefinition] = []
-var _resources: Array = [] # resource definitions (for future use)
+var _resources: Array = []
 var _tool_map: Dictionary = { } # tool_name → ToolDefinition
+var _provider_map: Dictionary = { } # tool_name → MCPToolProviderBase (or MCPNodeToolProviderBase)
+var _pending_async_results: Dictionary = { } # tool_name → {req_id, coro} for async resolution
 
 
 # ---------------------------------------------------------------------------
 # Lifecycle
 # ---------------------------------------------------------------------------
 func _ready() -> void:
-	_response_broker = ResponseBroker.new()
 	_register_builtin_tools()
 
 
-## Set the command handler reference. Must be called after construction.
+## Set the command handler reference. Deprecated — tools are now called directly.
+## Kept for backward compatibility during transition.
 func set_command_handler(handler) -> void:
 	_command_handler = handler
-	# Swap the websocket_server reference to our broker so command
-	# processor responses come through us.
-	if _command_handler:
-		_command_handler.set_websocket_server(_response_broker)
-		_set_broker_on_processors(_command_handler)
-
-
-func get_response_broker() -> ResponseBroker:
-	return _response_broker
 
 
 ## Connect to an MCPSse instance to track client disconnects.
-## Resets initialization state when the last SSE client disconnects,
-## allowing new clients to initialize without errors.
 func bind_sse(sse: MCPSse) -> void:
 	if sse:
 		sse.sse_client_disconnected.connect(_on_sse_client_disconnected)
 
 
 func _on_sse_client_disconnected(client_id: int) -> void:
-	# Per-session tracking: only reset if the disconnecting client
-	# is the one that performed the initialize.
 	if client_id == _initialized_client_id:
 		is_initialized = false
 		_initialized_client_id = -1
 		client_capabilities = { }
 		return
 
-	# Fallback: if the initialized client is gone but wasn't tracked
-	# (e.g. from an older session), reset when no SSE clients remain.
 	if sse_client_count() == 0:
 		is_initialized = false
 		_initialized_client_id = -1
@@ -139,7 +71,6 @@ func _on_sse_client_disconnected(client_id: int) -> void:
 
 
 func sse_client_count() -> int:
-	# Walk up to find the MCPSse node — it's a sibling under the plugin.
 	var parent_node = get_parent()
 	if parent_node:
 		for child in parent_node.get_children():
@@ -148,8 +79,6 @@ func sse_client_count() -> int:
 	return 0
 
 
-## Get the most recently registered SSE client ID.
-## Used to associate POST initialize requests with an SSE session.
 func _get_active_sse_client_id() -> int:
 	var parent_node = get_parent()
 	if parent_node:
@@ -157,11 +86,10 @@ func _get_active_sse_client_id() -> int:
 			if child is MCPSse:
 				var ids: Array = child.get_client_ids()
 				if not ids.is_empty():
-					return ids[-1] # Most recently registered
+					return ids[-1]
 	return -1
 
 
-## Check whether a given SSE client is still connected.
 func _is_sse_client_connected(client_id: int) -> bool:
 	var parent_node = get_parent()
 	if parent_node:
@@ -182,7 +110,6 @@ func handle_mcp_request(request: Dictionary) -> Variant:
 	var params: Dictionary = request.get("params", { })
 	var req_id = request.get("id", null)
 
-	# Notifications don't have an id — we don't send a response
 	var is_notification := req_id == null
 
 	match method:
@@ -205,7 +132,7 @@ func handle_mcp_request(request: Dictionary) -> Variant:
 			return MCPTypes.make_success_response(req_id, { })
 		_:
 			if is_notification:
-				return null # Unknown notifications are ignored (MCP spec)
+				return null
 			return MCPTypes.make_error_response(
 				req_id,
 				MCPTypes.ErrorCode.METHOD_NOT_FOUND,
@@ -217,7 +144,6 @@ func handle_mcp_request(request: Dictionary) -> Variant:
 # Initialize
 # ---------------------------------------------------------------------------
 func _handle_initialize(params: Dictionary, req_id: Variant) -> Dictionary:
-	# Auto-reset if the previously initialized SSE client disconnected
 	if is_initialized and _initialized_client_id >= 0:
 		if not _is_sse_client_connected(_initialized_client_id):
 			is_initialized = false
@@ -225,9 +151,6 @@ func _handle_initialize(params: Dictionary, req_id: Variant) -> Dictionary:
 			client_capabilities = { }
 
 	if is_initialized:
-		# Already initialized — return success (idempotent) instead of
-		# blocking other clients. Multi-client scenarios are common when
-		# MCP clients reconnect without tearing down old SSE sessions.
 		return MCPTypes.make_success_response(
 			req_id,
 			{
@@ -258,12 +181,11 @@ func _handle_initialize(params: Dictionary, req_id: Variant) -> Dictionary:
 
 
 func _handle_initialized_notification(_params: Dictionary) -> void:
-	# Client confirms initialization is complete
 	is_initialized = true
 
 
 # ---------------------------------------------------------------------------
-# Tools
+# Tools — list
 # ---------------------------------------------------------------------------
 func _handle_tools_list(_params: Dictionary, req_id: Variant) -> Dictionary:
 	var tools_list: Array[Dictionary] = []
@@ -276,84 +198,89 @@ func _handle_tools_list(_params: Dictionary, req_id: Variant) -> Dictionary:
 			},
 		)
 
-	return MCPTypes.make_success_response(
-		req_id,
-		{
-			"tools": tools_list,
-		},
-	)
+	return MCPTypes.make_success_response(req_id, { "tools": tools_list })
 
 
+# ---------------------------------------------------------------------------
+# Tools — call
+# ---------------------------------------------------------------------------
 func _handle_tools_call(params: Dictionary, req_id: Variant) -> Variant:
 	var name: String = params.get("name", "")
 	var arguments: Dictionary = params.get("arguments", { })
 
-	if not _tool_map.has(name):
+	if not _provider_map.has(name):
 		return MCPTypes.make_error_response(
 			req_id,
 			MCPTypes.ErrorCode.TOOL_NOT_FOUND,
 			"Tool not found: %s" % name,
 		)
 
-	var tool_def: ToolDefinition = _tool_map[name]
+	var provider = _provider_map[name]
 
-	# Build a command in the format expected by command processors
-	var command_id := "mcp_%s_%d" % [name, Time.get_ticks_msec()]
-	var command := {
-		"type": tool_def.command_type,
-		"params": arguments,
-		"commandId": command_id,
-	}
-
-	# Route to command handler
-	if not _command_handler:
+	if not provider.has_method("execute"):
 		return MCPTypes.make_error_response(
 			req_id,
 			MCPTypes.ErrorCode.INTERNAL_ERROR,
-			"Command handler not available",
+			"Tool provider missing execute(): %s" % name,
 		)
 
-	# Call the command handler
-	var handled: bool = false
-	for processor in _command_handler.get_command_processors():
-		if _call_processor_blocking(processor, command_id, command):
-			handled = true
-			break
+	# Call execute — may return Dictionary (sync) or awaitable (coroutine)
+	var result
+	if provider is MCPNodeToolProviderBase:
+		result = provider.execute_tool(name, arguments)
+	else:
+		result = provider.execute(arguments)
 
-	if not handled:
-		return MCPTypes.make_error_response(
-			req_id,
-			MCPTypes.ErrorCode.TOOL_EXECUTION_ERROR,
-			"No processor handled tool: %s" % name,
-		)
+	# Sync result — format and return immediately
+	if result is Dictionary:
+		return _format_tool_result(result, name, req_id)
 
-	# Wait for the response via the broker
-	var response = _response_broker.wait_for_response(command_id, 30.0)
-	if response == null:
-		return MCPTypes.make_error_response(
-			req_id,
-			MCPTypes.ErrorCode.TOOL_EXECUTION_ERROR,
-			"Tool execution timed out: %s" % name,
-		)
+	# Async result (coroutine) — schedule resolution, return 202 Accepted
+	_pending_async_results[name] = {"req_id": req_id, "coro": result}
+	_resolve_async(name)
+	return null
 
-	if response.get("status") == "success":
+
+## Format a tool execution result into a JSON-RPC response.
+func _format_tool_result(result: Dictionary, _tool_name: String, req_id: Variant):
+	if result.get("ok", false):
 		return MCPTypes.make_success_response(
 			req_id,
 			{
 				"content": [
 					{
 						"type": "text",
-						"text": JSON.stringify(response.get("result", { })),
+						"text": JSON.stringify(result.get("data", { })),
 					},
 				],
 			},
 		)
-
 	return MCPTypes.make_error_response(
 		req_id,
 		MCPTypes.ErrorCode.TOOL_EXECUTION_ERROR,
-		response.get("message", "Tool execution failed"),
+		result.get("error", "Tool execution failed"),
 	)
+
+
+## Resolve an async tool call in the background. This is a coroutine
+## that awaits the result and emits the JSON-RPC response when done.
+func _resolve_async(tool_name: String) -> void:
+	if not _pending_async_results.has(tool_name):
+		return
+	var entry: Dictionary = _pending_async_results[tool_name]
+	var coro = entry["coro"]
+	var req_id = entry["req_id"]
+	_pending_async_results.erase(tool_name)
+	# Await the coroutine result
+	var result = await coro
+	if not result is Dictionary:
+		jsonrpc_response.emit(MCPTypes.make_error_response(
+			req_id, MCPTypes.ErrorCode.TOOL_EXECUTION_ERROR,
+			"Async tool %s returned unexpected type" % tool_name))
+		return
+	var resp = _format_tool_result(result, tool_name, req_id)
+	if resp != null:
+		jsonrpc_response.emit(resp)
 
 
 # ---------------------------------------------------------------------------
@@ -364,18 +291,11 @@ func _handle_resources_list(_params: Dictionary, req_id: Variant) -> Dictionary:
 	for res in _resources:
 		resources_list.append(res)
 
-	return MCPTypes.make_success_response(
-		req_id,
-		{
-			"resources": resources_list,
-		},
-	)
+	return MCPTypes.make_success_response(req_id, { "resources": resources_list })
 
 
 func _handle_resources_read(_params: Dictionary, req_id: Variant) -> Variant:
 	var uri: String = _params.get("uri", "")
-
-	# For now, resources are read-only informational
 	return MCPTypes.make_error_response(
 		req_id,
 		MCPTypes.ErrorCode.RESOURCE_NOT_FOUND,
@@ -387,10 +307,12 @@ func _handle_resources_read(_params: Dictionary, req_id: Variant) -> Variant:
 # ---------------------------------------------------------------------------
 
 
-## Register a tool definition. Used by subclasses to add tools.
-func register_tool(tool: ToolDefinition) -> void:
+## Register a tool provider (definition + instance).
+## Accepts both RefCounted (MCPToolProviderBase) and Node (MCPNodeToolProviderBase) providers.
+func register_tool(tool: ToolDefinition, provider: Object) -> void:
 	_tools.append(tool)
 	_tool_map[tool.name] = tool
+	_provider_map[tool.name] = provider
 
 
 ## Register a resource definition.
@@ -399,16 +321,13 @@ func register_resource(resource: Dictionary) -> void:
 
 
 # ---------------------------------------------------------------------------
-# Built-in tools
+# Built-in tools — dynamically load from tool_providers/
 # ---------------------------------------------------------------------------
 func _register_builtin_tools() -> void:
 	_load_tool_providers()
 
 
 ## Dynamically load all tool provider scripts from the tool_providers/ directory.
-## Each file defines a class with a get_definition() -> ToolDefinition method.
-## If a file fails to compile or load, it is skipped gracefully so the rest
-## of the server continues to function.
 func _load_tool_providers() -> void:
 	var dir := "res://addons/godot_mcp/tool_providers/"
 	var da := DirAccess.open(dir)
@@ -422,96 +341,67 @@ func _load_tool_providers() -> void:
 	var skipped := 0
 
 	while not file_name.is_empty():
-		if file_name.ends_with(".gd") and file_name != ".gd":
+		if (
+			file_name.ends_with(".gd")
+			and file_name != ".gd"
+			and file_name != "tool_provider_base.gd"
+			and file_name != "node_tool_provider_base.gd"
+		):
 			var full_path := dir + file_name
-			var tool := _try_load_tool_provider(full_path)
-			if tool:
-				register_tool(tool)
-				loaded += 1
-			else:
+			var count := _try_load_tool_provider(full_path)
+			loaded += count
+			if count == 0:
 				skipped += 1
 		file_name = da.get_next()
 
 	da.list_dir_end()
-	print("MCP Core: loaded %d tools, skipped %d" % [loaded, skipped])
+	print("MCP Core: loaded %d tools, skipped %d files" % [loaded, skipped])
 
 
-## Attempt to load a single tool provider script. Returns a ToolDefinition
-## on success, or null if the script fails to compile or has errors.
-func _try_load_tool_provider(path: String) -> ToolDefinition:
+## Attempt to load a single tool provider script. Returns count of tools registered.
+## Supports both RefCounted (one tool per file) and Node-based (multi-tool) providers.
+func _try_load_tool_provider(path: String) -> int:
 	if not ResourceLoader.exists(path):
 		push_warning("Tool provider not found: " + path)
-		return null
+		return 0
 
 	var script := load(path) as GDScript
 	if script == null:
 		push_warning("Failed to load tool provider: " + path)
-		return null
+		return 0
 
-	# Check for parse/compile errors in the script
 	if not script.can_instantiate():
 		push_warning("Tool provider has compile errors, skipping: " + path)
-		return null
+		return 0
 
-	# Instantiate and verify it has the required method
-	var instance := script.new()
+	var instance = script.new()
 	if instance == null:
 		push_warning("Could not instantiate tool provider: " + path)
-		return null
+		return 0
 
+	# Node-based provider (multi-tool)
+	if instance is MCPNodeToolProviderBase:
+		if not instance.has_method("get_definitions"):
+			push_warning("Node tool provider missing get_definitions(): " + path)
+			return 0
+		add_child(instance)
+		var defs: Array = instance.get_definitions()
+		var count := 0
+		for def in defs:
+			if def is ToolDefinition:
+				register_tool(def, instance)
+				count += 1
+		return count
+
+	# RefCounted provider (single tool)
 	if not instance.has_method("get_definition"):
 		push_warning("Tool provider missing get_definition(): " + path)
-		return null
+		return 0
 
 	var def: ToolDefinition = instance.get_definition()
 	if def == null:
 		push_warning("Tool provider returned null definition: " + path)
-		return null
+		return 0
 
-	return def
-
-# (73 tool definitions moved to res://addons/godot_mcp/tool_providers/)
-
-# ---------------------------------------------------------------------------
-# Helpers
-# ---------------------------------------------------------------------------------------------------------------------------------------------------
-
-
-## Call a processor with the broker set, returning true if handled.
-## Processors return `bool` immediately — actual responses arrive later
-## through `_send_success`/`_send_error` which write to the ResponseBroker.
-func _call_processor_blocking(processor, _command_id: String, command: Dictionary) -> bool:
-	if not processor or not processor.has_method("process_command"):
-		return false
-
-	# Temporarily set broker on processor
-	var old_server = null
-	if processor.has_method("get_websocket_server"):
-		old_server = processor.get_websocket_server()
-		processor.set_websocket_server(_response_broker)
-
-	var handled := false
-	if processor.has_method("process_command"):
-		# Call synchronously — processor returns bool immediately
-		# The actual response is written to the broker via
-		# _send_success/_send_error
-		handled = processor.process_command(
-			0,
-			command.get("type"),
-			command.get("params", { }),
-			command.get("commandId", ""),
-		)
-
-	# Restore old server reference
-	if old_server != null:
-		processor.set_websocket_server(old_server)
-
-	return handled
-
-
-func _set_broker_on_processors(handler) -> void:
-	if not handler or not handler.has_method("get_command_processors"):
-		return
-	for proc in handler.get_command_processors():
-		if proc and proc.has_method("set_websocket_server"):
-			proc.set_websocket_server(_response_broker)
+	register_tool(def, instance)
+	return 1

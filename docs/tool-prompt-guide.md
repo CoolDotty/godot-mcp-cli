@@ -156,16 +156,6 @@ The server uses **HTTP + SSE** transport on port 9080. All tool calls are made v
 
 ---
 
-## Formatter Tools
-
-| Tool | Purpose | Parameters | Example Prompt |
-|------|---------|------------|----------------|
-| `check_formatter` | Check if the GDQuest GDScript Formatter addon and binary are installed. | (none) | "Is the GDScript formatter set up and ready?" |
-| `install_formatter_addon` | Download the GDQuest GDScript Formatter addon into the project. | (none) | "Install the GDScript formatter addon into this project." |
-| `install_formatter_binary` | Download the platform-specific formatter binary from GitHub releases. | (none) | "Download and install the formatter binary." |
-| `format_gdscript` | Format one or more `.gd` files — accepts a single path or a glob pattern. | `script_path` (string), `use_spaces` (optional bool), `indent_size` (optional number), `reorder_code` (optional bool), `safe_mode` (optional bool), `write_back` (optional bool) | "Format all `.gd` files in the project using `*`." |
-| `format_all_gdscript` | Format every `.gd` file in the project at once. | `use_spaces` (optional bool), `indent_size` (optional number), `reorder_code` (optional bool), `safe_mode` (optional bool), `write_back` (optional bool) | "Lint every GDScript file in the project." |
-
 ---
 
 ## Example Workflows
@@ -205,19 +195,6 @@ Steps:
 1. `get_script` → `script_path: "res://scripts/player.gd"`
 2. `edit_script` → `script_path: "res://scripts/player.gd"`, `content: "..."` (modified content)
 3. `get_script` → `script_path: "res://scripts/player.gd"` (verify)
-
-### GDScript Formatting
-> "Make sure all GDScript files follow the style guide."
-
-Steps:
-1. `check_formatter` → verify binary and addon are installed
-2. `install_formatter_binary` → (if missing)
-3. `format_all_gdscript` → formats every `.gd` file
-
-Or target specific files with globs:
-> "Format only the command files."
-
-1. `format_gdscript` → `script_path: "addons/godot_mcp/commands/*.gd"`
 
 ### Input Simulation Tips
 
