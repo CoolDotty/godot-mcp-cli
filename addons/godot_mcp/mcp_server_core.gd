@@ -558,6 +558,17 @@ func _register_builtin_tools() -> void:
 		"get_editor_state"
 	))
 	
+	register_tool(ToolDefinition.new(
+		"get_node_warnings", "Inspect the current scene for node configuration warnings.",
+		{
+			"type": "object",
+			"properties": {
+				"debug": {"type": "boolean", "description": "Include traversal debug stats"},
+			},
+		},
+		"get_node_warnings"
+	))
+	
 	# --- Enhanced Scene Tools ---
 	register_tool(ToolDefinition.new(
 		"get_editor_scene_structure", "Get detailed editor scene tree with properties and scripts.",

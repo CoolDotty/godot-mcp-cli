@@ -1,15 +1,15 @@
-[gd_scene load_steps=3 format=3 uid="uid://bqxnyxqvxj8vr"]
+[gd_scene format=3 uid="uid://bqxnyxqvxj8vr"]
 
 [ext_resource type="Script" uid="uid://bc76nus88fknp" path="res://test_debugger.gd" id="1_0k8xr"]
 
 [sub_resource type="RectangleShape2D" id="RectangleShape2D_1x8xr"]
 size = Vector2(80, 80)
 
-[node name="TestMainScene" type="Node"]
+[node name="TestMainScene" type="Node" unique_id=202324464]
 editor_description = "Test"
 script = ExtResource("1_0k8xr")
 
-[node name="UI" type="Control" parent="."]
+[node name="UI" type="Control" parent="." unique_id=1490436942]
 layout_mode = 3
 anchors_preset = 15
 anchor_right = 1.0
@@ -17,7 +17,7 @@ anchor_bottom = 1.0
 grow_horizontal = 2
 grow_vertical = 2
 
-[node name="VBoxContainer" type="VBoxContainer" parent="UI"]
+[node name="VBoxContainer" type="VBoxContainer" parent="UI" unique_id=1779651671]
 layout_mode = 1
 anchors_preset = 8
 anchor_left = 0.5
@@ -31,13 +31,13 @@ offset_bottom = 100.0
 grow_horizontal = 2
 grow_vertical = 2
 
-[node name="Title" type="Label" parent="UI/VBoxContainer"]
+[node name="Title" type="Label" parent="UI/VBoxContainer" unique_id=423128168]
 layout_mode = 2
 text = "Godot MCP Debugger Test Scene"
 horizontal_alignment = 1
 vertical_alignment = 1
 
-[node name="Instructions" type="Label" parent="UI/VBoxContainer"]
+[node name="Instructions" type="Label" parent="UI/VBoxContainer" unique_id=665918930]
 layout_mode = 2
 text = "Press SPACE to pause at breakpoint
 Press R to reset counter
@@ -47,30 +47,30 @@ horizontal_alignment = 1
 vertical_alignment = 1
 autowrap_mode = 3
 
-[node name="StatusLabel" type="Label" parent="UI/VBoxContainer"]
+[node name="StatusLabel" type="Label" parent="UI/VBoxContainer" unique_id=870680004]
 layout_mode = 2
 text = "Status: Running"
 horizontal_alignment = 1
 
-[node name="Player" type="Node2D" parent="."]
+[node name="Player" type="Node2D" parent="." unique_id=1838260945]
 
-[node name="Sprite2D" type="Sprite2D" parent="Player"]
+[node name="Sprite2D" type="Sprite2D" parent="Player" unique_id=627334629]
 modulate = Color(0.5, 0.8, 1, 1)
 
-[node name="CollisionShape2D" type="CollisionShape2D" parent="Player"]
+[node name="CollisionShape2D" type="CollisionShape2D" parent="Player" unique_id=922678060]
 shape = SubResource("RectangleShape2D_1x8xr")
 
-[node name="Area2D" type="Area2D" parent="Player"]
+[node name="Area2D" type="Area2D" parent="Player" unique_id=681619628]
 
-[node name="CollisionShape2D2" type="CollisionShape2D" parent="Player/Area2D"]
+[node name="CollisionShape2D2" type="CollisionShape2D" parent="Player/Area2D" unique_id=239338087]
 shape = SubResource("RectangleShape2D_1x8xr")
 
-[node name="TestNode" type="Node" parent="."]
+[node name="TestNode" type="Node" parent="." unique_id=1061683618]
 
-[node name="Child1" type="Node" parent="TestNode"]
+[node name="Child1" type="Node" parent="TestNode" unique_id=1686392502]
 
-[node name="Grandchild" type="Node" parent="TestNode/Child1"]
+[node name="Grandchild" type="Node" parent="TestNode/Child1" unique_id=2067115029]
 
-[node name="Child2" type="Node" parent="TestNode"]
+[node name="Child2" type="Node" parent="TestNode" unique_id=1171035028]
 
-[node name="@Node2D@22082" type="Node2D" parent="."]
+[node name="@Node2D@22082" type="Node2D" parent="." unique_id=1126695805]

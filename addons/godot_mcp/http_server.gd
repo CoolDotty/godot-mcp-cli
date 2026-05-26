@@ -54,8 +54,16 @@ func _init(_logging: bool = false):
 	_method_regex.compile("^(?<method>GET|POST|HEAD|PUT|PATCH|DELETE|OPTIONS) (?<path>[^ ]+) HTTP/1.1$")
 	_header_regex.compile("^(?<key>[\\w-]+): (?<value>(.*))$")
 
+var _poll_timer: Timer = null
+
 func _ready() -> void:
-	set_process(false)
+	# Use a Timer instead of _process so polling continues
+	# even when the Godot window loses focus.
+	_poll_timer = Timer.new()
+	_poll_timer.name = "PollTimer"
+	_poll_timer.timeout.connect(_on_poll_timer)
+	_poll_timer.one_shot = false
+	add_child(_poll_timer)
 
 # Print a debug message in console, if the debug mode is enabled
 #
@@ -92,21 +100,6 @@ func register_router(router: HttpRouter) -> void:
 	#})
 
 
-## Handle possibly incoming requests
-func _process(_delta: float) -> void:
-	while _server.is_connection_available():
-		var new_client = _server.take_connection()
-		if new_client:
-			self._clients.append(new_client)
-	for client in self._clients:
-		client.poll()
-		if client.get_status() == StreamPeerTCP.STATUS_CONNECTED:
-			var bytes = client.get_available_bytes()
-			if bytes > 0:
-					var request_string = client.get_utf8_string(bytes)
-					self._handle_request(client, request_string)
-	_remove_disconnected_clients()
-
 
 func _remove_disconnected_clients():
 	var valid_statuses = [StreamPeerTCP.STATUS_CONNECTED, StreamPeerTCP.STATUS_CONNECTING]
@@ -119,7 +112,7 @@ func _remove_disconnected_clients():
 ## Start the server
 func start():
 	self._server = TCPServer.new()
-	set_process(true)
+	_poll_timer.start(0.05)  # 50ms interval
 	var err: int = self._server.listen(self.port, self.bind_address)
 	match err:
 		22:
@@ -135,7 +128,7 @@ func stop():
 		client.disconnect_from_host()
 	self._clients.clear()
 	self._server.stop()
-	set_process(false)
+	_poll_timer.stop()
 	_print_debug("Server stopped.")
 
 
@@ -144,6 +137,25 @@ func stop():
 # #### Parameters
 # - client: The client that send the request
 # - request: The received request as a String
+func _on_poll_timer():
+	_poll()
+
+func _poll():
+	if not _server:
+		return
+	while _server.is_connection_available():
+		var new_client = _server.take_connection()
+		if new_client:
+			self._clients.append(new_client)
+	for client in self._clients:
+		client.poll()
+		if client.get_status() == StreamPeerTCP.STATUS_CONNECTED:
+			var bytes = client.get_available_bytes()
+			if bytes > 0:
+					var request_string = client.get_utf8_string(bytes)
+					self._handle_request(client, request_string)
+	_remove_disconnected_clients()
+
 func _handle_request(client: StreamPeer, request_string: String):
 	var request = HttpRequest.new()
 	for line in request_string.split("\r\n"):
