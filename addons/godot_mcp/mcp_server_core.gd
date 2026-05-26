@@ -433,10 +433,10 @@ func _register_builtin_tools() -> void:
 			"type": "object",
 			"properties": {
 				"node_path": {"type": "string", "description": "Path to the node"},
-				"property_name": {"type": "string", "description": "Name of the property to update"},
+				"property": {"type": "string", "description": "Name of the property to update"},
 				"value": {"description": "New value for the property"},
 			},
-			"required": ["node_path", "property_name", "value"],
+			"required": ["node_path", "property", "value"],
 		},
 		"update_node_property"
 	))
@@ -482,9 +482,13 @@ func _register_builtin_tools() -> void:
 		{
 			"type": "object",
 			"properties": {
-				"path": {"type": "string", "description": "Path to the script or node with script"},
+				"script_path": {"type": "string", "description": "Path to the script file"},
+				"node_path": {"type": "string", "description": "Path to the node with a script attached"},
 			},
-			"required": ["path"],
+			"oneOf": [
+				{"required": ["script_path"]},
+				{"required": ["node_path"]}
+			],
 		},
 		"get_script"
 	))
@@ -517,7 +521,10 @@ func _register_builtin_tools() -> void:
 		"get_scene_structure", "Get the full scene tree structure with properties.",
 		{
 			"type": "object",
-			"properties": {},
+			"properties": {
+				"path": {"type": "string", "description": "Path to the .tscn file"},
+			},
+			"required": ["path"],
 		},
 		"get_scene_structure"
 	))
