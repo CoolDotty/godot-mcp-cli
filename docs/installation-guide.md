@@ -35,15 +35,27 @@ your-project/
 │       ├── mcp_server_core.gd
 │       ├── mcp_router.gd
 │       ├── command_handler.gd
-│       ├── commands/*.gd
-│       ├── godottpd/          # HTTP server library (vendored)
-│       │   ├── http_server.gd
-│       │   ├── http_router.gd
-│       │   ├── http_request.gd
-│       │   ├── http_response.gd
-│       │   └── http_file_router.gd
-│       ├── ui/mcp_panel.*
-│       └── utils/*.gd
+│       ├── commands/*.gd        # Node, script, scene, project, editor, debugger, input
+│       ├── mcp_enhanced_commands.gd
+│       ├── mcp_asset_commands.gd
+│       ├── mcp_script_resource_commands.gd
+│       ├── mcp_debugger_bridge.gd
+│       ├── mcp_runtime_debugger_bridge.gd
+│       ├── mcp_input_handler.gd
+│       ├── mcp_debug_output_publisher.gd
+│       ├── runtime_debugger.gd
+│       ├── http_server.gd          # HTTP server (vendored from godottpd)
+│       ├── http_router.gd
+│       ├── http_request.gd
+│       ├── http_response.gd
+│       ├── http_file_router.gd
+│       ├── ui/mcp_panel.tscn
+│       ├── ui/mcp_panel.gd
+│       └── utils/
+│           ├── editor_utils.gd
+│           ├── node_utils.gd
+│           ├── resource_utils.gd
+│           └── script_utils.gd
 └── (your game files)
 ```
 

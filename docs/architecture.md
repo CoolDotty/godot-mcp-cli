@@ -53,7 +53,7 @@ Godot Editor (port 9080)
 | `http_response.gd` | HTTP response builder (send, json, send_raw) |
 | `http_file_router.gd` | Static file serving router |
 
-Originally sourced from [bit-garden/godottpd](https://github.com/bit-garden/godottpd) and integrated directly into the addon.
+Originally sourced from [bit-garden/godottpd](https://github.com/bit-garden/godottpd) and vendored directly into `addons/godot_mcp/`.
 
 ### MCP Protocol (`addons/godot_mcp/`)
 
@@ -71,7 +71,14 @@ Originally sourced from [bit-garden/godottpd](https://github.com/bit-garden/godo
 | `mcp_input_handler.gd` | Input simulation autoload |
 | `runtime_debugger.gd` | Script injected into debugged projects |
 | `mcp_debug_output_publisher.gd` | Live debug output streaming |
+| `mcp_enhanced_commands.gd` | Scene structure, runtime inspection, debug output, stack traces, errors |
+| `mcp_asset_commands.gd` | Asset and project file listing |
+| `mcp_script_resource_commands.gd` | Script fetch/edit operations |
 | `ui/mcp_panel.*` | Dock panel UI |
+| `utils/editor_utils.gd` | Editor helper utilities |
+| `utils/node_utils.gd` | Node traversal helpers |
+| `utils/resource_utils.gd` | Resource loading helpers |
+| `utils/script_utils.gd` | Script path normalization |
 
 ### Command Processors
 
@@ -84,9 +91,9 @@ Originally sourced from [bit-garden/godottpd](https://github.com/bit-garden/godo
 | `input_commands.gd` | Action simulation, mouse/keyboard, sequences |
 | `editor_commands.gd` | Editor state, script execution |
 | `project_commands.gd` | Project info, settings |
-| `mcp_enhanced_commands.gd` | Scene structure, runtime inspection, debug output |
-| `mcp_asset_commands.gd` | Asset listing |
-| `mcp_script_resource_commands.gd` | Script resource operations |
+| `mcp_enhanced_commands.gd` | Scene structure, runtime inspection, debug output, stack traces, editor errors, streaming |
+| `mcp_asset_commands.gd` | Asset listing by type, project file enumeration |
+| `mcp_script_resource_commands.gd` | Script fetch (`get_script`) and edit (`edit_script`) operations |
 
 ## Transport: HTTP + SSE
 
