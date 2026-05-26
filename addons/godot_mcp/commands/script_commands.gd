@@ -2,7 +2,12 @@
 class_name MCPScriptCommands
 extends MCPBaseCommandProcessor
 
-func process_command(client_id: int, command_type: String, params: Dictionary, command_id: String) -> bool:
+func process_command(
+		client_id: int,
+		command_type: String,
+		params: Dictionary,
+		command_id: String,
+) -> bool:
 	match command_type:
 		"create_script":
 			_create_script(client_id, params, command_id)
@@ -87,7 +92,11 @@ func _create_script(client_id: int, params: Dictionary, command_id: String) -> v
 	if not DirAccess.dir_exists_absolute(dir):
 		var err = DirAccess.make_dir_recursive_absolute(dir)
 		if err != OK:
-			return _send_error(client_id, "Failed to create directory: %s (Error code: %d)" % [dir, err], command_id)
+			return _send_error(
+				client_id,
+				"Failed to create directory: %s (Error code: %d)" % [dir, err],
+				command_id,
+			)
 
 	# Create the script file
 	var file = FileAccess.open(script_path, FileAccess.WRITE)
@@ -193,7 +202,11 @@ func _get_script(client_id: int, params: Dictionary, command_id: String) -> void
 
 	# Validation - either script_path or node_path must be provided
 	if script_path.is_empty() and node_path.is_empty():
-		return _send_error(client_id, "Either script_path or node_path must be provided", command_id)
+		return _send_error(
+			client_id,
+			"Either script_path or node_path must be provided",
+			command_id,
+		)
 
 	# If node_path is provided, get the script from the node
 	if not node_path.is_empty():
@@ -230,7 +243,11 @@ func _get_script(client_id: int, params: Dictionary, command_id: String) -> void
 				)
 				return
 			else:
-				return _send_error(client_id, "Cannot extract script path from node: %s" % node_path, command_id)
+				return _send_error(
+					client_id,
+					"Cannot extract script path from node: %s" % node_path,
+					command_id,
+				)
 
 	# Try to find the script if it's not found directly
 	if not FileAccess.file_exists(script_path):
@@ -284,7 +301,11 @@ func _get_script_metadata(client_id: int, params: Dictionary, command_id: String
 	# Extract script metadata
 	var metadata = {
 		"path": path,
-		"language": "gdscript" if path.ends_with(".gd") else "csharp" if path.ends_with(".cs") else "unknown",
+		"language": (
+			"gdscript" if path.ends_with(".gd")
+			else "csharp" if path.ends_with(".cs")
+			else "unknown"
+		),
 	}
 
 	# Attempt to get script class info
@@ -338,7 +359,7 @@ func _get_script_metadata(client_id: int, params: Dictionary, command_id: String
 	_send_success(client_id, metadata, command_id)
 
 
-func _get_current_script(client_id: int, params: Dictionary, command_id: String) -> void:
+func _get_current_script(client_id: int, _params: Dictionary, command_id: String) -> void:
 	# Get editor plugin and interfaces
 	var plugin = Engine.get_meta("GodotMCPPlugin")
 	if not plugin:

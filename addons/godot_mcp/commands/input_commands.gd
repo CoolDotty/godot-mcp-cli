@@ -13,11 +13,18 @@ var _pending_requests: Dictionary = { }
 
 func _get_runtime_bridge() -> MCPRuntimeDebuggerBridge:
 	if Engine.has_meta("MCPRuntimeDebuggerBridge"):
-		return Engine.get_meta("MCPRuntimeDebuggerBridge") as MCPRuntimeDebuggerBridge
+		return (
+			Engine.get_meta("MCPRuntimeDebuggerBridge") as MCPRuntimeDebuggerBridge
+		)
 	return null
 
 
-func process_command(client_id: int, command_type: String, params: Dictionary, command_id: String) -> bool:
+func process_command(
+		client_id: int,
+		command_type: String,
+		params: Dictionary,
+		command_id: String,
+) -> bool:
 	match command_type:
 		"simulate_action_press":
 			_handle_action_press(client_id, params, command_id)
@@ -228,10 +235,19 @@ func _handle_get_input_actions(client_id: int, _params: Dictionary, command_id: 
 		_send_success(client_id, result, command_id)
 
 
-func _send_input_command(action: String, data: Array, timeout_ms: int = DEFAULT_TIMEOUT_MS) -> Dictionary:
+func _send_input_command(
+		action: String,
+		data: Array,
+		timeout_ms: int = DEFAULT_TIMEOUT_MS,
+) -> Dictionary:
 	var runtime_bridge := _get_runtime_bridge()
 	if runtime_bridge == null:
-		return { "error": "Runtime debugger bridge not available. Ensure the project is running." }
+		return {
+			"error": (
+				"Runtime debugger bridge not available."
+				+ " Ensure the project is running."
+			),
+		}
 
 	# Get active session
 	var sessions := runtime_bridge.get_sessions()
@@ -289,7 +305,12 @@ func _send_input_command(action: String, data: Array, timeout_ms: int = DEFAULT_
 	_pending_requests.erase(request_id)
 
 	if result.is_empty():
-		return { "error": "Input command timed out. Ensure the game has the MCP input handler autoload." }
+		return {
+			"error": (
+				"Input command timed out."
+				+ " Ensure the game has the MCP input handler autoload."
+			),
+		}
 
 	return result
 

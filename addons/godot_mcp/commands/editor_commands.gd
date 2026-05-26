@@ -2,7 +2,12 @@
 class_name MCPEditorCommands
 extends MCPBaseCommandProcessor
 
-func process_command(client_id: int, command_type: String, params: Dictionary, command_id: String) -> bool:
+func process_command(
+		client_id: int,
+		command_type: String,
+		params: Dictionary,
+		command_id: String,
+) -> bool:
 	match command_type:
 		"get_editor_state":
 			_get_editor_state(client_id, params, command_id)
@@ -28,7 +33,7 @@ func process_command(client_id: int, command_type: String, params: Dictionary, c
 	return false # Command not handled
 
 
-func _get_editor_state(client_id: int, params: Dictionary, command_id: String) -> void:
+func _get_editor_state(client_id: int, _params: Dictionary, command_id: String) -> void:
 	# Get editor plugin and interfaces
 	var plugin = Engine.get_meta("GodotMCPPlugin")
 	if not plugin:
@@ -69,7 +74,7 @@ func _get_editor_state(client_id: int, params: Dictionary, command_id: String) -
 	_send_success(client_id, state, command_id)
 
 
-func _get_selected_node(client_id: int, params: Dictionary, command_id: String) -> void:
+func _get_selected_node(client_id: int, _params: Dictionary, command_id: String) -> void:
 	# Get editor plugin and interfaces
 	var plugin = Engine.get_meta("GodotMCPPlugin")
 	if not plugin:
@@ -150,9 +155,17 @@ func _create_resource(client_id: int, params: Dictionary, command_id: String) ->
 		if ClassDB.is_parent_class(resource_type, "Resource"):
 			resource = ClassDB.instantiate(resource_type)
 			if not resource:
-				return _send_error(client_id, "Failed to instantiate resource: %s" % resource_type, command_id)
+				return _send_error(
+					client_id,
+					"Failed to instantiate resource: %s" % resource_type,
+					command_id,
+				)
 		else:
-			return _send_error(client_id, "Type is not a Resource: %s" % resource_type, command_id)
+			return _send_error(
+				client_id,
+				"Type is not a Resource: %s" % resource_type,
+				command_id,
+			)
 	else:
 		return _send_error(client_id, "Invalid resource type: %s" % resource_type, command_id)
 
@@ -165,7 +178,11 @@ func _create_resource(client_id: int, params: Dictionary, command_id: String) ->
 	if not DirAccess.dir_exists_absolute(dir):
 		var err = DirAccess.make_dir_recursive_absolute(dir)
 		if err != OK:
-			return _send_error(client_id, "Failed to create directory: %s (Error code: %d)" % [dir, err], command_id)
+			return _send_error(
+				client_id,
+				"Failed to create directory: %s (Error code: %d)" % [dir, err],
+				command_id,
+			)
 
 	# Save the resource
 	var result = ResourceSaver.save(resource, resource_path)
@@ -262,7 +279,10 @@ func _get_node_warnings(client_id: int, params: Dictionary, command_id: String) 
 	if scene_path.is_empty():
 		scene_path = "Unsaved Scene"
 
-	var scene_tree = EditorUtils.find_scene_tree_editor_tree(editor_interface, edited_scene_root.name)
+	var scene_tree = EditorUtils.find_scene_tree_editor_tree(
+		editor_interface,
+		edited_scene_root.name,
+	)
 	if not scene_tree:
 		return _send_error(client_id, "Scene tree dock not found", command_id)
 
@@ -376,7 +396,14 @@ func _rescan_filesystem(client_id: int, params: Dictionary, command_id: String) 
 			"scan_complete": not still_scanning,
 			"elapsed_ms": elapsed_ms,
 			"actions": actions_performed,
-			"message": "Filesystem rescan %s in %d ms — %s" % ["completed" if not still_scanning else "timed out", elapsed_ms, ", ".join(actions_performed)],
+			"message": (
+				"Filesystem rescan %s in %d ms — %s"
+				% [
+					"completed" if not still_scanning else "timed out",
+					elapsed_ms,
+					", ".join(actions_performed),
+				]
+			),
 		},
 		command_id,
 	)

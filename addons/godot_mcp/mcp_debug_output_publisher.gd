@@ -258,7 +258,8 @@ func _fetch_log_file_text() -> String:
 
 
 func _locate_output_control() -> Control:
-	var result := _locate_control_with_scoring(Callable(self, "_score_output_control"), OUTPUT_SCORE_THRESHOLD)
+	var scoring := Callable(self, "_score_output_control")
+	var result := _locate_control_with_scoring(scoring, OUTPUT_SCORE_THRESHOLD)
 	_last_control_search_summary = String(result.get("summary", ""))
 	return result.get("control")
 
@@ -286,15 +287,21 @@ func _locate_control_with_scoring(scoring_func: Callable, threshold: int) -> Dic
 					summary.append("direct_base_control=valid")
 					base_control_result = _search_control_tree(base_control, scoring_func)
 					if not base_control_result.is_empty():
-						summary.append("direct_score=%d" % int(base_control_result.get("score", 0)))
-						summary.append("direct_visited=%d" % int(base_control_result.get("visited", 0)))
+						var d_scr := int(base_control_result.get("score", 0))
+						summary.append("direct_score=%d" % d_scr)
+						var d_vis := int(base_control_result.get("visited", 0))
+						summary.append("direct_visited=%d" % d_vis)
 						var direct_class := String(base_control_result.get("class", ""))
 						if not direct_class.is_empty():
 							summary.append("direct_class=%s" % direct_class)
 						var direct_path := String(base_control_result.get("path", ""))
 						if not direct_path.is_empty():
-							summary.append("direct_path=%s" % _summarize_summary_value(direct_path))
-						if int(base_control_result.get("score", 0)) >= threshold and base_control_result.get("control"):
+							summary.append(
+								"direct_path=%s"
+								% _summarize_summary_value(direct_path),
+							)
+						var b_scr := int(base_control_result.get("score", 0))
+						if b_scr >= threshold and base_control_result.get("control"):
 							return {
 								"control": base_control_result.get("control"),
 								"summary": "; ".join(summary),
@@ -352,7 +359,8 @@ func _locate_control_with_scoring(scoring_func: Callable, threshold: int) -> Dic
 				if editor_interface_again.has_method("get_editor_main_screen"):
 					var main_screen = editor_interface_again.call("get_editor_main_screen")
 					var valid_main := is_instance_valid(main_screen)
-					summary.append("plugin_main_screen=%s" % ("valid" if valid_main else "invalid"))
+					var pms := "valid" if valid_main else "invalid"
+					summary.append("plugin_main_screen=%s" % pms)
 					if valid_main:
 						_register_control_root(search_roots, root_labels, root_ids, main_screen, "main_screen")
 				else:
@@ -368,7 +376,8 @@ func _locate_control_with_scoring(scoring_func: Callable, threshold: int) -> Dic
 	if scene_tree:
 		var tree_root := scene_tree.get_root()
 		var valid_root := is_instance_valid(tree_root)
-		summary.append("scene_tree_root=%s" % ("valid" if valid_root else "invalid"))
+		var str_val := "valid" if valid_root else "invalid"
+		summary.append("scene_tree_root=%s" % str_val)
 		if valid_root:
 			_register_control_root(search_roots, root_labels, root_ids, tree_root, "scene_tree_root")
 	else:
@@ -458,7 +467,10 @@ func _search_control_tree(root: Node, scoring_func: Callable = Callable()) -> Di
 				if control_node.is_inside_tree():
 					best_path = String(control_node.get_path())
 				else:
-					best_path = String(control_node.name) if control_node.has_method("get_name") else "<detached>"
+					if control_node.has_method("get_name"):
+						best_path = String(control_node.name)
+					else:
+						best_path = "<detached>"
 
 		for child in node.get_children():
 			queue.append(child)
@@ -591,7 +603,9 @@ func clear_log_output() -> Dictionary:
 	var cleared := false
 	var method_used := ""
 
-	var editor_node = Engine.get_singleton("EditorNode") if Engine.has_singleton("EditorNode") else null
+	var editor_node = null
+	if Engine.has_singleton("EditorNode"):
+		editor_node = Engine.get_singleton("EditorNode")
 	if editor_node and editor_node.has_method("get_log"):
 		var editor_log = editor_node.call("get_log")
 		if is_instance_valid(editor_log):
@@ -742,7 +756,9 @@ func get_stack_frames_snapshot(session_id: int = -1) -> Dictionary:
 func _gather_editor_search_roots() -> Array:
 	var search_roots: Array = []
 
-	var editor_node = Engine.get_singleton("EditorNode") if Engine.has_singleton("EditorNode") else null
+	var editor_node = null
+	if Engine.has_singleton("EditorNode"):
+		editor_node = Engine.get_singleton("EditorNode")
 	if editor_node:
 		if editor_node.has_method("get_log"):
 			var editor_log = editor_node.call("get_log")
@@ -809,7 +825,10 @@ func _capture_errors_tab_text() -> Dictionary:
 		if tab_info.has("control"):
 			break
 
-	diagnostics["search_summary"] = " | ".join(aggregated_summary) if aggregated_summary.size() > 0 else ""
+	if aggregated_summary.size() > 0:
+		diagnostics["search_summary"] = " | ".join(aggregated_summary)
+	else:
+		diagnostics["search_summary"] = ""
 
 	if tab_info.is_empty() or not tab_info.has("control"):
 		diagnostics["error"] = "errors_tab_not_found"
@@ -858,7 +877,7 @@ func _capture_errors_tab_text() -> Dictionary:
 	}
 
 
-func _capture_stack_trace_panel(session_id: int) -> Dictionary:
+func _capture_stack_trace_panel(_session_id: int) -> Dictionary:
 	var diagnostics := {
 		"source": "stack_trace_lookup",
 		"timestamp": Time.get_ticks_msec(),
@@ -923,7 +942,10 @@ func _capture_stack_trace_panel(session_id: int) -> Dictionary:
 
 	diagnostics["control_found"] = true
 	diagnostics["control_class"] = panel_control.get_class()
-	diagnostics["control_path"] = String(panel_control.get_path()) if panel_control.is_inside_tree() else ""
+	if panel_control.is_inside_tree():
+		diagnostics["control_path"] = String(panel_control.get_path())
+	else:
+		diagnostics["control_path"] = ""
 	if panel_info.has("tab_title"):
 		diagnostics["tab_title"] = panel_info.get("tab_title")
 	if panel_info.has("score"):
@@ -951,7 +973,10 @@ func _capture_stack_trace_panel(session_id: int) -> Dictionary:
 		if lines.is_empty() and text.is_empty():
 			var fallback_text_control := _find_descendant_text_control(panel_control)
 			if is_instance_valid(fallback_text_control):
-				diagnostics["text_control_path"] = String(fallback_text_control.get_path()) if fallback_text_control.is_inside_tree() else ""
+				if fallback_text_control.is_inside_tree():
+					diagnostics["text_control_path"] = String(fallback_text_control.get_path())
+				else:
+					diagnostics["text_control_path"] = ""
 				diagnostics["text_control_class"] = fallback_text_control.get_class()
 				text = _extract_text_from_control(fallback_text_control)
 				if not text.is_empty():
@@ -964,7 +989,10 @@ func _capture_stack_trace_panel(session_id: int) -> Dictionary:
 		var capture_control: Control = panel_control
 		if is_instance_valid(text_control):
 			capture_control = text_control
-			diagnostics["text_control_path"] = String(text_control.get_path()) if text_control.is_inside_tree() else ""
+			if text_control.is_inside_tree():
+				diagnostics["text_control_path"] = String(text_control.get_path())
+			else:
+				diagnostics["text_control_path"] = ""
 			diagnostics["text_control_class"] = text_control.get_class()
 
 		text = _extract_text_from_control(capture_control)
@@ -981,7 +1009,7 @@ func _capture_stack_trace_panel(session_id: int) -> Dictionary:
 	}
 
 
-func _capture_stack_frames_panel(session_id: int) -> Dictionary:
+func _capture_stack_frames_panel(_session_id: int) -> Dictionary:
 	var diagnostics := {
 		"source": "stack_frames_lookup",
 		"timestamp": Time.get_ticks_msec(),
@@ -1046,7 +1074,10 @@ func _capture_stack_frames_panel(session_id: int) -> Dictionary:
 
 	diagnostics["control_found"] = true
 	diagnostics["control_class"] = panel_control.get_class()
-	diagnostics["control_path"] = String(panel_control.get_path()) if panel_control.is_inside_tree() else ""
+	if panel_control.is_inside_tree():
+		diagnostics["control_path"] = String(panel_control.get_path())
+	else:
+		diagnostics["control_path"] = ""
 	if panel_info.has("tab_title"):
 		diagnostics["tab_title"] = panel_info.get("tab_title")
 	if panel_info.has("score"):
@@ -1072,7 +1103,10 @@ func _capture_stack_frames_panel(session_id: int) -> Dictionary:
 		if lines.is_empty() and frames.is_empty():
 			var text_control := _find_descendant_text_control(panel_control)
 			if is_instance_valid(text_control):
-				diagnostics["text_control_path"] = String(text_control.get_path()) if text_control.is_inside_tree() else ""
+				if text_control.is_inside_tree():
+					diagnostics["text_control_path"] = String(text_control.get_path())
+			else:
+				diagnostics["text_control_path"] = ""
 				diagnostics["text_control_class"] = text_control.get_class()
 				text = _extract_text_from_control(text_control)
 				if not text.is_empty():
@@ -1085,7 +1119,10 @@ func _capture_stack_frames_panel(session_id: int) -> Dictionary:
 		var capture_control: Control = panel_control
 		if is_instance_valid(text_control):
 			capture_control = text_control
-			diagnostics["text_control_path"] = String(text_control.get_path()) if text_control.is_inside_tree() else ""
+			if text_control.is_inside_tree():
+				diagnostics["text_control_path"] = String(text_control.get_path())
+			else:
+				diagnostics["text_control_path"] = ""
 			diagnostics["text_control_class"] = text_control.get_class()
 
 		text = _extract_text_from_control(capture_control)

@@ -71,9 +71,11 @@ func _initialize_command_processors():
 
 	# Try to load optional command classes
 	var script_resource_commands = _try_load_optional_command(
-		"res://addons/godot_mcp/mcp_script_resource_commands.gd")
+		"res://addons/godot_mcp/mcp_script_resource_commands.gd",
+	)
 	var enhanced_commands = _try_load_optional_command(
-		"res://addons/godot_mcp/mcp_enhanced_commands.gd")
+		"res://addons/godot_mcp/mcp_enhanced_commands.gd",
+	)
 	var asset_commands = _try_load_optional_command("res://addons/godot_mcp/mcp_asset_commands.gd")
 
 	# Add required processors as children for proper lifecycle management
@@ -148,10 +150,16 @@ func _handle_command(client_id: int, command: Dictionary) -> void:
 			if (
 				processor.get_script()
 				and processor.get_script().resource_path.ends_with(
-					"mcp_enhanced_commands.gd")
+					"mcp_enhanced_commands.gd",
+				)
 			):
 				var handled = await _call_processor(
-					processor, client_id, command_type, params, command_id)
+					processor,
+					client_id,
+					command_type,
+					params,
+					command_id,
+				)
 				if handled:
 					print("Command %s handled by Enhanced Commands processor" % command_type)
 					return
@@ -193,13 +201,17 @@ func _processor_requires_await(processor: Node) -> bool:
 
 
 func _call_processor(
-	processor: Node,
-	client_id: int,
-	command_type: String,
-	params: Dictionary,
-	command_id: String,
+		processor: Node,
+		client_id: int,
+		command_type: String,
+		params: Dictionary,
+		command_id: String,
 ) -> bool:
 	if _processor_requires_await(processor):
 		return await processor.process_command(client_id, command_type, params, command_id)
 	return processor.process_command(
-		client_id, command_type, params, command_id)
+		client_id,
+		command_type,
+		params,
+		command_id,
+	)

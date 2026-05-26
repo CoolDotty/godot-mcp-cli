@@ -10,7 +10,10 @@ var _pending_executions := { }
 
 
 func process_command(
-	client_id: int, command_type: String, params: Dictionary, command_id: String
+		client_id: int,
+		command_type: String,
+		params: Dictionary,
+		command_id: String,
 ) -> bool:
 	match command_type:
 		"execute_editor_script":
@@ -27,16 +30,19 @@ func _fix_api_compatibility(code: String) -> String:
 	if "Directory.new()" in modified_code:
 		modified_code = modified_code.replace("Directory.new()", "DirAccess.open('res://')")
 		modified_code = modified_code.replace(
-			"dir.list_dir_begin(true, true)", "dir.list_dir_begin()"
+			"dir.list_dir_begin(true, true)",
+			"dir.list_dir_begin()",
 		)
 
 	# Handle File API (replaced with FileAccess in Godot 4.x)
 	if "File.new()" in modified_code:
 		modified_code = modified_code.replace(
-			"File.new()", "FileAccess.open('res://', FileAccess.READ)"
+			"File.new()",
+			"FileAccess.open('res://', FileAccess.READ)",
 		)
 		modified_code = modified_code.replace(
-			"file.open(", "file = FileAccess.open("
+			"file.open(",
+			"file = FileAccess.open(",
 		)
 
 	return modified_code
@@ -138,7 +144,7 @@ func _execute_code():
 		if space_count > 0:
 			# Create tabs based on space count (e.g., 4 spaces = 1 tab)
 			var tabs = ""
-			for i in range(space_count / 4):  # Integer division
+			for i in range(space_count / 4): # Integer division
 				tabs += "\t"
 			processed_line = tabs + line.substr(space_count)
 
@@ -168,7 +174,7 @@ func _execute_code():
 	# Connect to the execution_completed signal
 	script_node.connect(
 		"execution_completed",
-		_on_script_execution_completed.bind(script_node, client_id, command_id)
+		_on_script_execution_completed.bind(script_node, client_id, command_id),
 	)
 
 	var execution_log_snapshot = _capture_log_snapshot()
@@ -341,7 +347,10 @@ func _extract_log_tail(snapshot: Dictionary) -> Array:
 
 
 func _track_pending_execution(
-	script_node: Node, client_id: int, command_id: String, log_snapshot: Dictionary
+		script_node: Node,
+		client_id: int,
+		command_id: String,
+		log_snapshot: Dictionary,
 ) -> void:
 	var execution_id = script_node.get_instance_id()
 	var timer := Timer.new()
@@ -350,7 +359,7 @@ func _track_pending_execution(
 	add_child(timer)
 	timer.connect(
 		"timeout",
-		Callable(self, "_on_execution_timeout").bind(execution_id, client_id, command_id)
+		Callable(self, "_on_execution_timeout").bind(execution_id, client_id, command_id),
 	)
 	timer.start()
 	_pending_executions[execution_id] = {

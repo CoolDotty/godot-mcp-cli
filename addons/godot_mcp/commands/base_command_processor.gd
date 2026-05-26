@@ -19,10 +19,10 @@ func set_websocket_server(server) -> void:
 
 # Must be implemented by subclasses
 func process_command(
-	_client_id: int,
-	_command_type: String,
-	_params: Dictionary,
-	_command_id: String,
+		_client_id: int,
+		_command_type: String,
+		_params: Dictionary,
+		_command_id: String,
 ) -> bool:
 	push_error("BaseCommandProcessor.process_command called directly")
 	return false

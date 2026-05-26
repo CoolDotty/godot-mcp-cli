@@ -22,7 +22,8 @@ func _ready() -> void:
 
 
 func _on_capture(message: String, data: Array) -> bool:
-	var action := message.substr(CAPTURE_NAME.length() + 1) if message.begins_with(CAPTURE_NAME + ":") else message
+	var action := message.substr(CAPTURE_NAME.length() + 1) \
+	if message.begins_with(CAPTURE_NAME + ":") else message
 
 	match action:
 		"action_press":
@@ -167,7 +168,12 @@ func _handle_mouse_click(data: Array) -> bool:
 	return true
 
 
-func _execute_mouse_click(request_id: int, position: Vector2, button: int, double_click: bool) -> void:
+func _execute_mouse_click(
+		request_id: int,
+		position: Vector2,
+		button: int,
+		double_click: bool,
+) -> void:
 	var event := InputEventMouseButton.new()
 	event.position = position
 	event.global_position = position
@@ -256,7 +262,14 @@ func _handle_drag(data: Array) -> bool:
 	return true
 
 
-func _execute_drag(request_id: int, start: Vector2, end_pos: Vector2, duration_ms: int, steps: int, button: int) -> void:
+func _execute_drag(
+		request_id: int,
+		start: Vector2,
+		end_pos: Vector2,
+		duration_ms: int,
+		steps: int,
+		button: int,
+) -> void:
 	var duration := float(duration_ms) / 1000.0
 	var step_delay := duration / float(steps)
 	var tree := get_tree()
@@ -340,7 +353,13 @@ func _handle_key_press(data: Array) -> bool:
 	return true
 
 
-func _execute_key_press(request_id: int, keycode: int, key_string: String, duration_ms: int, modifiers: Dictionary) -> void:
+func _execute_key_press(
+		request_id: int,
+		keycode: int,
+		key_string: String,
+		duration_ms: int,
+		modifiers: Dictionary,
+) -> void:
 	var event := InputEventKey.new()
 	event.keycode = keycode
 	event.physical_keycode = keycode
@@ -409,17 +428,35 @@ func _execute_input_sequence(request_id: int, sequence: Array) -> void:
 				var strength := float(step_dict.get("strength", 1.0))
 				if InputMap.has_action(action):
 					Input.action_press(action, strength)
-					step_result = { "type": "press", "action": action, "success": true }
+					step_result = {
+						"type": "press",
+						"action": action,
+						"success": true,
+					}
 				else:
-					step_result = { "type": "press", "action": action, "success": false, "error": "Unknown action" }
+					step_result = {
+						"type": "press",
+						"action": action,
+						"success": false,
+						"error": "Unknown action",
+					}
 					errors.append("Unknown action: %s" % action)
 			"release":
 				var action := str(step_dict.get("action", ""))
 				if InputMap.has_action(action):
 					Input.action_release(action)
-					step_result = { "type": "release", "action": action, "success": true }
+					step_result = {
+						"type": "release",
+						"action": action,
+						"success": true,
+					}
 				else:
-					step_result = { "type": "release", "action": action, "success": false, "error": "Unknown action" }
+					step_result = {
+						"type": "release",
+						"action": action,
+						"success": false,
+						"error": "Unknown action",
+					}
 					errors.append("Unknown action: %s" % action)
 			"tap":
 				var action := str(step_dict.get("action", ""))
@@ -429,15 +466,28 @@ func _execute_input_sequence(request_id: int, sequence: Array) -> void:
 					if tree:
 						await tree.create_timer(duration).timeout
 					Input.action_release(action)
-					step_result = { "type": "tap", "action": action, "success": true }
+					step_result = {
+						"type": "tap",
+						"action": action,
+						"success": true,
+					}
 				else:
-					step_result = { "type": "tap", "action": action, "success": false, "error": "Unknown action" }
+					step_result = {
+						"type": "tap",
+						"action": action,
+						"success": false,
+						"error": "Unknown action",
+					}
 					errors.append("Unknown action: %s" % action)
 			"wait":
 				var duration := float(step_dict.get("duration_ms", 100)) / 1000.0
 				if tree:
 					await tree.create_timer(duration).timeout
-				step_result = { "type": "wait", "duration_ms": step_dict.get("duration_ms", 100), "success": true }
+				step_result = {
+					"type": "wait",
+					"duration_ms": step_dict.get("duration_ms", 100),
+					"success": true,
+				}
 			"click":
 				var pos := Vector2(
 					float(step_dict.get("x", 0)),

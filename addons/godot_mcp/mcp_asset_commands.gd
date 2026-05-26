@@ -5,7 +5,12 @@ extends Node
 var _websocket_server = null
 
 
-func process_command(client_id: int, command_type: String, params: Dictionary, command_id: String) -> bool:
+func process_command(
+		client_id: int,
+		command_type: String,
+		params: Dictionary,
+		command_id: String,
+) -> bool:
 	match command_type:
 		"list_project_files":
 			_handle_list_project_files(client_id, params, command_id)
@@ -123,7 +128,10 @@ func list_assets_by_type(type: String) -> Dictionary:
 			"count": 0,
 			"files": [],
 			"organizedFiles": { },
-			"error": "Unknown asset type: %s. Valid types are: %s" % [type, ", ".join(extension_map.keys())],
+			"error": (
+				"Unknown asset type: %s. Valid types are: %s"
+				% [type, ", ".join(extension_map.keys())]
+			),
 		}
 
 	# Get files

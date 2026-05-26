@@ -2,7 +2,12 @@
 class_name MCPProjectCommands
 extends MCPBaseCommandProcessor
 
-func process_command(client_id: int, command_type: String, params: Dictionary, command_id: String) -> bool:
+func process_command(
+		client_id: int,
+		command_type: String,
+		params: Dictionary,
+		command_id: String,
+) -> bool:
 	match command_type:
 		"get_project_info":
 			_get_project_info(client_id, params, command_id)
@@ -57,7 +62,11 @@ func _get_project_info(client_id: int, _params: Dictionary, command_id: String) 
 			"project_version": project_version,
 			"project_path": project_path,
 			"godot_version": structured_version,
-			"current_scene": get_tree().edited_scene_root.scene_file_path if get_tree().edited_scene_root else "",
+			"current_scene": (
+				get_tree().edited_scene_root.scene_file_path
+				if get_tree().edited_scene_root
+				else ""
+			),
 		},
 		command_id,
 	)
@@ -109,7 +118,7 @@ func _scan_directory(dir: DirAccess, path: String, extensions: Array, files: Arr
 	dir.list_dir_end()
 
 
-func _get_project_structure(client_id: int, params: Dictionary, command_id: String) -> void:
+func _get_project_structure(client_id: int, _params: Dictionary, command_id: String) -> void:
 	var structure = {
 		"directories": [],
 		"file_counts": { },
@@ -151,7 +160,7 @@ func _analyze_project_structure(dir: DirAccess, path: String, structure: Diction
 	dir.list_dir_end()
 
 
-func _get_project_settings(client_id: int, params: Dictionary, command_id: String) -> void:
+func _get_project_settings(client_id: int, _params: Dictionary, command_id: String) -> void:
 	# Get relevant project settings
 	var settings = {
 		"project_name": ProjectSettings.get_setting("application/config/name", "Untitled Project"),
@@ -186,7 +195,7 @@ func _get_project_settings(client_id: int, params: Dictionary, command_id: Strin
 	_send_success(client_id, settings, command_id)
 
 
-func _list_project_resources(client_id: int, params: Dictionary, command_id: String) -> void:
+func _list_project_resources(client_id: int, _params: Dictionary, command_id: String) -> void:
 	var resources = {
 		"scenes": [],
 		"scripts": [],
@@ -222,11 +231,23 @@ func _scan_resources(dir: DirAccess, path: String, resources: Dictionary) -> voi
 				resources["scenes"].append(file_path)
 			elif file_name.ends_with(".gd") or file_name.ends_with(".cs"):
 				resources["scripts"].append(file_path)
-			elif file_name.ends_with(".png") or file_name.ends_with(".jpg") or file_name.ends_with(".jpeg"):
+			elif (
+				file_name.ends_with(".png")
+				or file_name.ends_with(".jpg")
+				or file_name.ends_with(".jpeg")
+			):
 				resources["textures"].append(file_path)
-			elif file_name.ends_with(".wav") or file_name.ends_with(".ogg") or file_name.ends_with(".mp3"):
+			elif (
+				file_name.ends_with(".wav")
+				or file_name.ends_with(".ogg")
+				or file_name.ends_with(".mp3")
+			):
 				resources["audio"].append(file_path)
-			elif file_name.ends_with(".obj") or file_name.ends_with(".glb") or file_name.ends_with(".gltf"):
+			elif (
+				file_name.ends_with(".obj")
+				or file_name.ends_with(".glb")
+				or file_name.ends_with(".gltf")
+			):
 				resources["models"].append(file_path)
 			elif file_name.ends_with(".tres") or file_name.ends_with(".res"):
 				resources["resources"].append(file_path)
@@ -292,7 +313,11 @@ func _run_current_scene(client_id: int, _params: Dictionary, command_id: String)
 
 	var scene_path: String = scene_root.scene_file_path
 	if scene_path.is_empty():
-		return _send_error(client_id, "Current scene must be saved before it can be run", command_id)
+		return _send_error(
+			client_id,
+			"Current scene must be saved before it can be run",
+			command_id,
+		)
 
 	editor_interface.play_current_scene()
 	_send_success(

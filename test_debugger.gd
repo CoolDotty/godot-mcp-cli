@@ -13,7 +13,7 @@ func _ready():
 	_test_function_call()
 
 
-func _process(delta):
+func _process(_delta):
 	_counter += 1
 
 	# This is a good place to set a breakpoint

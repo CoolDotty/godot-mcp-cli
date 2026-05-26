@@ -478,26 +478,20 @@ func remove_breakpoint(script_path: String, line: int) -> Dictionary:
 				_session_breakpoints[session_id][script_path].erase(line)
 				if _session_breakpoints[session_id][script_path].is_empty():
 					_session_breakpoints[session_id].erase(script_path)
-		var success = _remove_native_breakpoint(session,
-		script_path,
-		line,
+
+			var success = _remove_native_breakpoint(session, script_path, line)
+			if success:
+				breakpoint_removed.emit(session_id, script_path, line, true)
+				_trace("Breakpoint removed successfully: %s:%d" % [script_path, line])
+
+				return { "success": true, "session_id": session_id }
+
+			return {
+				"success": false,
+				"message": "Failed to remove breakpoint in Godot's debugger",
+			}
 	)
-	if success:
-		breakpoint_removed.emit(session_id, script_path, line, true)
-		_trace("Breakpoint removed successfully: %s:%d" % [script_path, line])
 
-		return { "success": true, "session_id": session_id }
-
-	return {
-		"success": false,
-		"message": "Failed to remove breakpoint in Godot's debugger",
-	}
-
-
-
-
-
-	)
 
 func get_breakpoints() -> Dictionary:
 	var aggregated: Dictionary = { }
@@ -1311,11 +1305,13 @@ func _set_native_breakpoint(session: EditorDebuggerSession, script_path: String,
 			],
 		]
 
+		var fmt := ""
 		for attempt in attempts:
 			session.send_message(attempt[0], attempt[1])
+			fmt = attempt[0]
 		_trace(
 			"Attempted breakpoint set with format %s: %s:%d" %
-			[attempt[0], script_path, line],
+			[fmt, script_path, line],
 		)
 
 		return true

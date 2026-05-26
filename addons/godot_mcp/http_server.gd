@@ -52,7 +52,7 @@ var _access_control_allowed_headers = "content-type"
 func _init(_logging: bool = false):
 	self._logging = _logging
 	_method_regex.compile(
-		"^(?<method>GET|POST|HEAD|PUT|PATCH|DELETE|OPTIONS) (?<path>[^ ]+) HTTP/1.1$"
+		"^(?<method>GET|POST|HEAD|PUT|PATCH|DELETE|OPTIONS) (?<path>[^ ]+) HTTP/1.1$",
 	)
 	_header_regex.compile("^(?<key>[\\w-]+): (?<value>(.*))$")
 
@@ -77,7 +77,12 @@ func _ready() -> void:
 func _print_debug(message: String) -> void:
 	var time = Time.get_datetime_dict_from_system()
 	var time_return = "%02d-%02d-%02d %02d:%02d:%02d" % [
-		time.year, time.month, time.day, time.hour, time.minute, time.second
+		time.year,
+		time.month,
+		time.day,
+		time.hour,
+		time.minute,
+		time.second,
 	]
 	print("[SERVER] ", time_return, " >> ", message)
 
@@ -316,9 +321,9 @@ func _path_to_regexp(path: String, should_match_subfolders: bool = false) -> Arr
 ## [br][param access_control_allowed_methods] - The methods that are allowed to be used
 ## [br][param access_control_allowed_headers] - The headers that are allowed to be sent
 func enable_cors(
-	allowed_origins: PackedStringArray,
-	access_control_allowed_methods: String = "POST, GET, OPTIONS",
-	access_control_allowed_headers: String = "content-type"
+		allowed_origins: PackedStringArray,
+		access_control_allowed_methods: String = "POST, GET, OPTIONS",
+		access_control_allowed_headers: String = "content-type",
 ):
 	_allowed_origins = allowed_origins
 	_access_control_allowed_methods = access_control_allowed_methods

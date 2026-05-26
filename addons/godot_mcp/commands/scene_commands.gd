@@ -2,7 +2,12 @@
 class_name MCPSceneCommands
 extends MCPBaseCommandProcessor
 
-func process_command(client_id: int, command_type: String, params: Dictionary, command_id: String) -> bool:
+func process_command(
+		client_id: int,
+		command_type: String,
+		params: Dictionary,
+		command_id: String,
+) -> bool:
 	match command_type:
 		"save_scene":
 			_save_scene(client_id, params, command_id)
@@ -104,7 +109,11 @@ func _open_scene(client_id: int, params: Dictionary, command_id: String) -> void
 			command_id,
 		)
 	else:
-		_send_error(client_id, "Cannot access EditorInterface. Please open the scene manually: %s" % path, command_id)
+		_send_error(
+			client_id,
+			"Cannot access EditorInterface. Please open the scene manually: %s" % path,
+			command_id,
+		)
 
 
 func _get_current_scene(client_id: int, _params: Dictionary, command_id: String) -> void:
@@ -208,7 +217,10 @@ func _get_node_structure(node: Node) -> Dictionary:
 	for prop in property_list:
 		var name = prop["name"]
 		# Filter to include only the most useful properties
-		if not name.begins_with("_") and name not in ["script", "children", "position", "rotation", "scale"]:
+		if (
+			not name.begins_with("_")
+			and name not in ["script", "children", "position", "rotation", "scale"]
+		):
 			continue
 
 		# Skip properties that are default values
@@ -281,7 +293,11 @@ func _create_scene(client_id: int, params: Dictionary, command_id: String) -> vo
 			if ClassDB.class_exists(root_node_type):
 				root_node = ClassDB.instantiate(root_node_type)
 			else:
-				return _send_error(client_id, "Invalid root node type: %s" % root_node_type, command_id)
+				return _send_error(
+					client_id,
+					"Invalid root node type: %s" % root_node_type,
+					command_id,
+				)
 
 	# Give the root node a name based on the file name
 	var file_name = path.get_file().get_basename()
@@ -345,7 +361,11 @@ func _delete_scene(client_id: int, params: Dictionary, command_id: String) -> vo
 		var edited_scene_root = editor_interface.get_edited_scene_root()
 
 		if edited_scene_root and edited_scene_root.scene_file_path == path:
-			return _send_error(client_id, "Cannot delete currently open scene: %s. Close it first." % path, command_id)
+			return _send_error(
+				client_id,
+				"Cannot delete currently open scene: %s. Close it first." % path,
+				command_id,
+			)
 
 	# Delete the file
 	var dir = DirAccess.open("res://")

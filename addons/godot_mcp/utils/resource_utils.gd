@@ -79,7 +79,9 @@ static func resource_to_dict(resource: Resource) -> Dictionary:
 	var property_list = resource.get_property_list()
 	for prop in property_list:
 		var prop_name = prop["name"]
-		if not prop_name.begins_with("_") and prop_name != "resource_path" and prop_name != "resource_name":
+		if not prop_name.begins_with("_") \
+		and prop_name != "resource_path" \
+		and prop_name != "resource_name":
 			result["properties"][prop_name] = resource.get(prop_name)
 
 	return result

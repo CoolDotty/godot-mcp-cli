@@ -101,9 +101,12 @@ func _auto_start_server(attempt: int = 0):
 	# Verify and report
 	await get_tree().create_timer(0.5).timeout
 	if http_server.is_listening():
-		print("✓ MCP HTTP server auto-started on http://%s:%d" % [
-			http_server.bind_address, http_server.port
-		])
+		print(
+			"✓ MCP HTTP server auto-started on http://%s:%d" % [
+				http_server.bind_address,
+				http_server.port,
+			],
+		)
 		_sync_panel_ui()
 	else:
 		if attempt < 3:
@@ -293,7 +296,7 @@ func _register_input_handler_autoload() -> void:
 	# Add the autoload
 	ProjectSettings.set_setting(
 		"autoload/" + INPUT_HANDLER_AUTOLOAD_NAME,
-		"*" + INPUT_HANDLER_SCRIPT_PATH
+		"*" + INPUT_HANDLER_SCRIPT_PATH,
 	)
 	ProjectSettings.save()
 	print("MCP Input Handler autoload registered. Restart the game for input simulation to work.")

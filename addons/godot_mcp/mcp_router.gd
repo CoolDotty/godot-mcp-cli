@@ -84,7 +84,7 @@ func _on_post(request: HttpRequest, response: HttpResponse) -> bool:
 ## Establish an SSE connection for the client.
 ## Writes the SSE headers, registers the client with MCPSse,
 ## then keeps the connection alive.
-func _handle_sse(request: HttpRequest, response: HttpResponse) -> bool:
+func _handle_sse(_request: HttpRequest, response: HttpResponse) -> bool:
 	var stream: StreamPeerTCP = response.client
 	if not stream:
 		response.send(500, "Internal error: no client stream")

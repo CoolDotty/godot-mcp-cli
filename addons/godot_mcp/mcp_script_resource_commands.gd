@@ -2,7 +2,12 @@
 class_name MCPScriptResourceCommands
 extends MCPBaseCommandProcessor
 
-func process_command(client_id: int, command_type: String, params: Dictionary, command_id: String) -> bool:
+func process_command(
+		client_id: int,
+		command_type: String,
+		params: Dictionary,
+		command_id: String,
+) -> bool:
 	match command_type:
 		"get_script":
 			_handle_get_script(client_id, params, command_id)

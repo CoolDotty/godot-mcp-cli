@@ -53,7 +53,11 @@ const NOTIFICATION_METHODS := {
 
 
 ## Create a standard MCP JSON-RPC request
-static func make_request(method: String, params: Dictionary = { }, id: Variant = null) -> Dictionary:
+static func make_request(
+		method: String,
+		params: Dictionary = { },
+		id: Variant = null,
+) -> Dictionary:
 	var req := {
 		"jsonrpc": "2.0",
 		"method": method,
@@ -75,7 +79,12 @@ static func make_success_response(id: Variant, result: Dictionary = { }) -> Dict
 
 
 ## Create a standard MCP JSON-RPC error response
-static func make_error_response(id: Variant, code: int, message: String, data: Variant = null) -> Dictionary:
+static func make_error_response(
+		id: Variant,
+		code: int,
+		message: String,
+		data: Variant = null,
+) -> Dictionary:
 	var err := {
 		"jsonrpc": "2.0",
 		"id": id,
@@ -101,7 +110,12 @@ static func make_notification(method: String, params: Dictionary = { }) -> Dicti
 
 
 ## Build a JSON Schema for a tool parameter
-static func make_param_schema(name: String, description: String, param_type: String = "string", required: bool = true) -> Dictionary:
+static func make_param_schema(
+		_name: String,
+		description: String,
+		param_type: String = "string",
+		_required: bool = true,
+) -> Dictionary:
 	var schema := {
 		"type": param_type,
 		"description": description,

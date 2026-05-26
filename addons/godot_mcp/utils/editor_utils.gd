@@ -64,7 +64,8 @@ static func _tree_has_scene_root(root: TreeItem, scene_root_name: String) -> boo
 
 		var item_name = String(item.get_text(0))
 		var item_path = String(item.get_metadata(0))
-		if item_name == scene_root_name or item_path == scene_root_name or item_path.begins_with(scene_root_name + "/"):
+		if item_name == scene_root_name or item_path == scene_root_name \
+		or item_path.begins_with(scene_root_name + "/"):
 			return true
 
 		var child_item = item.get_first_child()
@@ -75,7 +76,12 @@ static func _tree_has_scene_root(root: TreeItem, scene_root_name: String) -> boo
 	return false
 
 
-static func _collect_scene_tree_warning_entries_for_item(tree: Tree, item: TreeItem, result: Dictionary, scene_root_name: String) -> void:
+static func _collect_scene_tree_warning_entries_for_item(
+		tree: Tree,
+		item: TreeItem,
+		result: Dictionary,
+		scene_root_name: String,
+) -> void:
 	if not is_instance_valid(item):
 		return
 
@@ -92,7 +98,8 @@ static func _collect_scene_tree_warning_entries_for_item(tree: Tree, item: TreeI
 		if rect.size.x <= 0.0 or rect.size.y <= 0.0:
 			continue
 
-		var warning_text := String(tree.get_tooltip(rect.position + (rect.size * 0.5))).strip_edges()
+		var tooltip := tree.get_tooltip(rect.position + (rect.size * 0.5))
+		var warning_text := String(tooltip).strip_edges()
 		if warning_text.is_empty():
 			continue
 
@@ -105,7 +112,8 @@ static func _collect_scene_tree_warning_entries_for_item(tree: Tree, item: TreeI
 		var existing_index := -1
 		for i in range(warnings.size()):
 			var warning_entry = warnings[i]
-			if typeof(warning_entry) == TYPE_DICTIONARY and warning_entry.get("path", "") == item_path:
+			if typeof(warning_entry) == TYPE_DICTIONARY \
+			and warning_entry.get("path", "") == item_path:
 				existing_index = i
 				break
 

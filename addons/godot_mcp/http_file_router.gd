@@ -23,16 +23,32 @@ var exclude_extensions: PackedStringArray = []
 var listfiles: bool = false
 
 var weekdays: Array[String] = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun']
-var monthnames: Array[String] = ['___', 'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']
+var monthnames: Array[String] = [
+	'___',
+	'Jan',
+	'Feb',
+	'Mar',
+	'Apr',
+	'May',
+	'Jun',
+	'Jul',
+	'Aug',
+	'Sep',
+	'Oct',
+	'Nov',
+	'Dec',
+]
 
 
 ## Creates an HttpFileRouter intance
 ## [br]
 ## [br][param path] - Full path to the folder which will be exposed to web.
 ## [br][param options] - Optional Dictionary of options which can be configured:
-## [br] - [param fallback_page]: Full path to the fallback page which will be served if the requested file was not found
-## [br] - [param extensions]: A list of extensions that will be checked if no file extension is provided by the request
-## [br]	- [param exclude_extensions]: A list of extensions that will be excluded if requested
+## [br] - [param fallback_page]: Full path to the fallback page
+##     which will be served if the requested file was not found
+## [br] - [param extensions]: A list of extensions checked
+##     if no file extension is provided by the request
+## [br] - [param exclude_extensions]: Extensions excluded when requested
 func _init(
 		path: String,
 		localpath: String,
@@ -76,41 +92,69 @@ func _handle_get(request: HttpRequest, response: HttpResponse) -> bool:
 				break
 
 	# GDScript must be excluded, unless it is used as a preprocessor (php-like)
-	if (file_exists and not serving_path.get_extension() in ["gd"] + Array(exclude_extensions)):
+	var excluded := ["gd"] + Array(exclude_extensions)
+	if file_exists and not serving_path.get_extension() in excluded:
 		var modifiedtime = FileAccess.get_modified_time(localpath + serving_path)
 		var filesize = FileAccess.open(localpath + serving_path, FileAccess.READ).get_length()
 		var time = Time.get_datetime_dict_from_unix_time(modifiedtime)
 		var weekday = weekdays[time.weekday]
 		var monthname = monthnames[time.month]
-		var timestamp = '%s, %02d %s %04d %02d:%02d:%02d GMT' % [weekday, time.day, monthname, time.year, time.hour, time.minute, time.second]
+		var timestamp = '%s, %02d %s %04d %02d:%02d:%02d GMT' % [
+			weekday,
+			time.day,
+			monthname,
+			time.year,
+			time.hour,
+			time.minute,
+			time.second,
+		]
 
 		if request.headers.get('If-Modified-Since') == timestamp:
-			response.send_raw(304, ''.to_ascii_buffer(), _get_mime(serving_path.get_extension()))
+			response.send_raw(
+				304,
+				''.to_ascii_buffer(),
+				_get_mime(serving_path.get_extension()),
+			)
 			return true
-		else:
-			if request.headers.has('Range'):
-				var rdata: PackedStringArray = request.headers['Range'].split('=')
-				var brequest: PackedStringArray = rdata[1].split('-')
-				if brequest[0].is_valid_int():
-					var start: int = brequest[0].to_int()
-					var file: FileAccess = FileAccess.open(localpath + serving_path, FileAccess.READ)
-					var size = file.get_length()
-					file.close()
-					response.send_raw(
-						206,
-						_serve_file(serving_path, start),
-						_get_mime(serving_path.get_extension()),
-						"Cache-Control: no-cache\r\nLast-Modified: %s\r\nContent-Range: bytes %s-%s/%s\n\rContent-Length: %s\r\n" % [timestamp, start, size - 1, size, filesize],
-					)
-			else:
-				response.send_raw(
-					200,
-					_serve_file(serving_path),
-					_get_mime(serving_path.get_extension()),
-					"Cache-Control: no-cache\r\nLast-Modified: %s\r\nContent-Length: %s\r\n" % [timestamp, filesize],
+		if request.headers.has('Range'):
+			var rdata: PackedStringArray = request.headers['Range'].split('=')
+			var brequest: PackedStringArray = rdata[1].split('-')
+			if brequest[0].is_valid_int():
+				var start: int = brequest[0].to_int()
+				var file: FileAccess = FileAccess.open(
+					localpath + serving_path,
+					FileAccess.READ,
 				)
-			return true
-	elif self.listfiles and serving_dir.ends_with('/') and DirAccess.dir_exists_absolute(localpath + serving_dir):
+				var size = file.get_length()
+				file.close()
+				var range_header := (
+					"Cache-Control: no-cache\r\n"
+					+ "Last-Modified: %s\r\n" % timestamp
+					+ "Content-Range: bytes %s-%s/%s\n\r"
+					% [start, size - 1, size]
+					+ "Content-Length: %s\r\n" % filesize
+				)
+				response.send_raw(
+					206,
+					_serve_file(serving_path, start),
+					_get_mime(serving_path.get_extension()),
+					range_header,
+				)
+		else:
+			var cache_header := (
+				"Cache-Control: no-cache\r\n"
+				+ "Last-Modified: %s\r\n" % timestamp
+				+ "Content-Length: %s\r\n" % filesize
+			)
+			response.send_raw(
+				200,
+				_serve_file(serving_path),
+				_get_mime(serving_path.get_extension()),
+				cache_header,
+			)
+		return true
+	if self.listfiles and serving_dir.ends_with('/') \
+	and DirAccess.dir_exists_absolute(localpath + serving_dir):
 		var dir = DirAccess.open(localpath + serving_dir)
 		var dirs := dir.get_directories()
 		var files := dir.get_files()
@@ -123,11 +167,15 @@ func _handle_get(request: HttpRequest, response: HttpResponse) -> bool:
 				out += '<a href="%s">%s</a><br>' % [f.uri_encode(), f]
 		response.send(200, out)
 		return true
-	else:
-		if fallback_page.length() > 0:
-			serving_path = path + "/" + fallback_page
-			response.send_raw(200 if index_page == fallback_page else 404, _serve_file(serving_path), _get_mime(fallback_page.get_extension()))
-			return true
+	if fallback_page.length() > 0:
+		serving_path = path + "/" + fallback_page
+		var fallback_code := 200 if index_page == fallback_page else 404
+		response.send_raw(
+			fallback_code,
+			_serve_file(serving_path),
+			_get_mime(fallback_page.get_extension()),
+		)
+		return true
 		#else:
 		#response.send_raw(404)
 	return false

@@ -18,13 +18,13 @@ var headers: Dictionary = { }
 var cookies: Array = []
 
 ## Origins allowed to call this resource
-var access_control_origin = "*"
+var access_control_origin: String = "*"
 
 ## Comma separed methods for the access control
-var access_control_allowed_methods = "POST, GET, OPTIONS"
+var access_control_allowed_methods: String = "POST, GET, OPTIONS"
 
 ## Comma separed headers for the access control
-var access_control_allowed_headers = "content-type"
+var access_control_allowed_headers: String = "content-type"
 
 
 ## Send out a raw (Bytes) response to the client
@@ -32,8 +32,14 @@ var access_control_allowed_headers = "content-type"
 ## [br][param status] - The HTTP Status code to send
 ## [br][param data] - The body data to send
 ## [br][param content_type] - The type of content to send.
-func send_raw(status_code: int, data: PackedByteArray = PackedByteArray([]), content_type: String = "application/octet-stream", extra_header: String = "") -> void:
-	client.put_data(("HTTP/1.1 %d %s\r\n" % [status_code, _match_status_code(status_code)]).to_ascii_buffer())
+func send_raw(
+		status_code: int,
+		data: PackedByteArray = PackedByteArray([]),
+		content_type: String = "application/octet-stream",
+		extra_header: String = "",
+) -> void:
+	var status_text := _match_status_code(status_code)
+	client.put_data(("HTTP/1.1 %d %s\r\n" % [status_code, status_text]).to_ascii_buffer())
 	client.put_data(("Server: %s\r\n" % server_identifier).to_ascii_buffer())
 	for header in headers.keys():
 		client.put_data(("%s: %s\r\n" % [header, headers[header]]).to_ascii_buffer())
@@ -44,9 +50,12 @@ func send_raw(status_code: int, data: PackedByteArray = PackedByteArray([]), con
 	if 'Content-Length: ' not in extra_header:
 		client.put_data(("Content-Length: %d\r\n" % data.size()).to_ascii_buffer())
 	client.put_data("Connection: close\r\n".to_ascii_buffer())
-	client.put_data(("Access-Control-Allow-Origin: %s\r\n" % access_control_origin).to_ascii_buffer())
-	client.put_data(("Access-Control-Allow-Methods: %s\r\n" % access_control_allowed_methods).to_ascii_buffer())
-	client.put_data(("Access-Control-Allow-Headers: %s\r\n" % access_control_allowed_headers).to_ascii_buffer())
+	var acao := access_control_origin
+	client.put_data(("Access-Control-Allow-Origin: %s\r\n" % acao).to_ascii_buffer())
+	var acam := access_control_allowed_methods
+	client.put_data(("Access-Control-Allow-Methods: %s\r\n" % acam).to_ascii_buffer())
+	var acah := access_control_allowed_headers
+	client.put_data(("Access-Control-Allow-Headers: %s\r\n" % acah).to_ascii_buffer())
 	client.put_data("Accept-Ranges: bytes\r\n".to_ascii_buffer())
 	client.put_data(extra_header.to_ascii_buffer())
 	client.put_data(("Content-Type: %s\r\n\r\n" % content_type).to_ascii_buffer())
@@ -55,9 +64,15 @@ func send_raw(status_code: int, data: PackedByteArray = PackedByteArray([]), con
 
 
 ## For sending parts of data
-## [br]TODO: http_file_router.gd - use this to send small parts of large files at a time to avoid smashing the ram of the server
-## [br]TODO: This will probably be used for range header?
-func send_partial(status_code: int, data: PackedByteArray = PackedByteArray([]), content_type: String = "application/octet-stream", extra_header: String = "") -> void:
+## TODO: http_file_router.gd - use this for small parts of large files
+## to avoid smashing the ram of the server
+## TODO: This will probably be used for range header?
+func send_partial(
+		_status_code: int,
+		data: PackedByteArray = PackedByteArray([]),
+		_content_type: String = "application/octet-stream",
+		_extra_header: String = "",
+) -> void:
 	client.put_data(data)
 
 
@@ -91,8 +106,9 @@ func set(field: StringName, value: Variant) -> void:
 ## [br]
 ## [br][param name] - The name of the cookie. i.e. [code]user-id[/code]
 ## [br][param value] - The value of this cookie. i.e. [code]abcdef[/code]
-## [br][param options] - A Dictionary of [url=https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/Set-Cookie#attributes]cookie attributes[/url]
-## for this specific cokkie in the [code]{ "secure" : "true"}[/code] format.
+## [br][param options] - Dictionary of cookie attributes
+## See: https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/Set-Cookie#attributes
+## Format: { "secure": "true" }
 func cookie(name: String, value: String, options: Dictionary = { }) -> void:
 	var cookie: String = name + "=" + value
 	if options.has("domain"):

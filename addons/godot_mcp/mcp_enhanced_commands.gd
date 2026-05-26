@@ -2,7 +2,12 @@
 class_name MCPEnhancedCommands
 extends MCPBaseCommandProcessor
 
-func process_command(client_id: int, command_type: String, params: Dictionary, command_id: String) -> bool:
+func process_command(
+		client_id: int,
+		command_type: String,
+		params: Dictionary,
+		command_id: String,
+) -> bool:
 	match command_type:
 		"get_editor_scene_structure":
 			_handle_get_editor_scene_structure(client_id, params, command_id)
@@ -45,7 +50,6 @@ func process_command(client_id: int, command_type: String, params: Dictionary, c
 	return false
 
 
-# Helper function to get EditorInterface
 func _get_editor_interface():
 	var plugin_instance = Engine.get_meta("GodotMCPPlugin") as EditorPlugin
 	if plugin_instance:
@@ -55,7 +59,9 @@ func _get_editor_interface():
 
 func _get_runtime_bridge() -> MCPRuntimeDebuggerBridge:
 	if Engine.has_meta("MCPRuntimeDebuggerBridge"):
-		return Engine.get_meta("MCPRuntimeDebuggerBridge") as MCPRuntimeDebuggerBridge
+		return Engine.get_meta(
+			"MCPRuntimeDebuggerBridge",
+		) as MCPRuntimeDebuggerBridge
 	return null
 
 
@@ -64,7 +70,10 @@ func _get_debugger_bridge() -> MCPDebuggerBridge:
 		return Engine.get_meta("MCPDebuggerBridge") as MCPDebuggerBridge
 	if Engine.has_meta("GodotMCPPlugin"):
 		var plugin_instance = Engine.get_meta("GodotMCPPlugin")
-		if plugin_instance and plugin_instance.has_method("get_debugger_bridge"):
+		if (
+			plugin_instance
+			and plugin_instance.has_method("get_debugger_bridge")
+		):
 			var bridge = plugin_instance.get_debugger_bridge()
 			if bridge and bridge is MCPDebuggerBridge:
 				return bridge
@@ -73,16 +82,33 @@ func _get_debugger_bridge() -> MCPDebuggerBridge:
 # ---- Scene Structure Commands ----
 
 
-func _handle_get_editor_scene_structure(client_id: int, params: Dictionary, command_id: String) -> void:
+func _handle_get_editor_scene_structure(
+		client_id: int,
+		params: Dictionary,
+		command_id: String,
+) -> void:
 	var options = _build_scene_options(params, false, false)
 	var result = _build_scene_structure_result(options)
 	_send_success(client_id, result, command_id)
 
 
-func _handle_get_runtime_scene_structure(client_id: int, params: Dictionary, command_id: String) -> void:
+func _handle_get_runtime_scene_structure(
+		client_id: int,
+		params: Dictionary,
+		command_id: String,
+) -> void:
 	var runtime_bridge := _get_runtime_bridge()
 	if runtime_bridge == null:
-		_send_success(client_id, { "error": "Runtime debugger bridge not available. Ensure the project is running." }, command_id)
+		_send_success(
+			client_id,
+			{
+				"error": (
+					"Runtime debugger bridge not available."
+					+ " Ensure the project is running."
+				),
+			},
+			command_id,
+		)
 		return
 
 	var options = _build_scene_options(params, false, false)
@@ -102,7 +128,11 @@ func _handle_get_runtime_scene_structure(client_id: int, params: Dictionary, com
 	var baseline_version: int = request_info.get("baseline_version", 0)
 	var scene_tree := get_tree()
 	if scene_tree == null:
-		_send_success(client_id, { "error": "Scene tree unavailable for runtime polling." }, command_id)
+		_send_success(
+			client_id,
+			{ "error": "Scene tree unavailable for runtime polling." },
+			command_id,
+		)
 		return
 
 	var deadline: int = Time.get_ticks_msec() + timeout_ms
@@ -119,7 +149,12 @@ func _handle_get_runtime_scene_structure(client_id: int, params: Dictionary, com
 	if snapshot.is_empty():
 		snapshot = {
 			"error": "Timed out waiting for runtime scene data.",
-			"hint": "Ensure the remote debugger supports scene tree capture; try opening the Remote Scene tab in Godot or enabling EngineDebugger.set_capture('scene', true) inside the running project.",
+			"hint": (
+				"Ensure the remote debugger supports scene tree capture;"
+				+ " try opening the Remote Scene tab in Godot or"
+				+ " enabling EngineDebugger.set_capture('scene', true)"
+				+ " inside the running project."
+			),
 		}
 
 	_send_success(client_id, snapshot, command_id)
@@ -156,7 +191,9 @@ func _handle_evaluate_runtime(client_id: int, params: Dictionary, command_id: St
 	if params.has("capture_prints"):
 		options["capture_prints"] = _coerce_bool(params.get("capture_prints"), true)
 
-	var timeout_ms := int(params.get("timeout_ms", MCPRuntimeDebuggerBridge.DEFAULT_EVAL_TIMEOUT_MS))
+	var timeout_ms := int(
+		params.get("timeout_ms", MCPRuntimeDebuggerBridge.DEFAULT_EVAL_TIMEOUT_MS),
+	)
 	if timeout_ms < 100:
 		timeout_ms = 100
 	elif timeout_ms > 5000:
@@ -170,12 +207,25 @@ func _handle_evaluate_runtime(client_id: int, params: Dictionary, command_id: St
 	var session_id: int = request_info.get("session_id", -1)
 	var request_id: int = request_info.get("request_id", -1)
 	if session_id < 0 or request_id < 0:
-		_send_success(client_id, { "error": "Failed to enqueue runtime evaluation request." }, command_id)
+		_send_success(
+			client_id,
+			{ "error": "Failed to enqueue runtime evaluation request." },
+			command_id,
+		)
 		return
 
 	var scene_tree := get_tree()
 	if scene_tree == null:
-		_send_success(client_id, { "error": "Scene tree unavailable while waiting for runtime evaluation." }, command_id)
+		_send_success(
+			client_id,
+			{
+				"error": (
+					"Scene tree unavailable while waiting"
+					+ " for runtime evaluation."
+				),
+			},
+			command_id,
+		)
 		return
 
 	var deadline: int = Time.get_ticks_msec() + timeout_ms
@@ -190,7 +240,11 @@ func _handle_evaluate_runtime(client_id: int, params: Dictionary, command_id: St
 	if response.is_empty():
 		response = {
 			"error": "Timed out waiting for runtime evaluation result.",
-			"hint": "Ensure the running project registers the mcp_eval debugger capture via EngineDebugger.register_message_capture.",
+			"hint": (
+				"Ensure the running project registers the"
+				+ " mcp_eval debugger capture via"
+				+ " EngineDebugger.register_message_capture."
+			),
 		}
 	elif not response.get("success", true) and not response.has("error"):
 		response["error"] = "Runtime evaluation failed."
@@ -226,14 +280,24 @@ func _build_scene_structure_result(options: Dictionary) -> Dictionary:
 	}
 
 
-func _build_scene_options(params: Dictionary, include_properties_default: bool, include_scripts_default: bool) -> Dictionary:
+func _build_scene_options(
+		params: Dictionary,
+		include_properties_default: bool,
+		include_scripts_default: bool,
+) -> Dictionary:
 	var include_properties = include_properties_default
 	if params.has("include_properties"):
-		include_properties = _coerce_bool(params.get("include_properties"), include_properties_default)
+		include_properties = _coerce_bool(
+			params.get("include_properties"),
+			include_properties_default,
+		)
 
 	var include_scripts = include_scripts_default
 	if params.has("include_scripts"):
-		include_scripts = _coerce_bool(params.get("include_scripts"), include_scripts_default)
+		include_scripts = _coerce_bool(
+			params.get("include_scripts"),
+			include_scripts_default,
+		)
 
 	var max_depth = -1
 	if params.has("max_depth"):
@@ -271,8 +335,17 @@ func _build_node_info(node: Node, options: Dictionary, depth: int) -> Dictionary
 		if node.has_method("get_property_list"):
 			var props = node.get_property_list()
 			for prop in props:
-				if prop.usage & PROPERTY_USAGE_EDITOR and not (prop.usage & PROPERTY_USAGE_CATEGORY):
-					if prop.name in ["position", "rotation", "scale", "text", "visible"]:
+				if (
+					prop.usage & PROPERTY_USAGE_EDITOR
+					and not (prop.usage & PROPERTY_USAGE_CATEGORY)
+				):
+					if prop.name in [
+						"position",
+						"rotation",
+						"scale",
+						"text",
+						"visible",
+					]:
 						properties[prop.name] = node.get(prop.name)
 		if properties.size() > 0:
 			info["properties"] = properties
@@ -371,7 +444,10 @@ func _handle_subscribe_debug_output(client_id: int, command_id: String) -> void:
 		client_id,
 		{
 			"subscribed": true,
-			"message": "Live debug output streaming enabled. Future log frames will be delivered asynchronously.",
+			"message": (
+				"Live debug output streaming enabled."
+				+ " Future log frames will be delivered asynchronously."
+			),
 		},
 		command_id,
 	)
@@ -445,7 +521,9 @@ func _handle_get_stack_trace_panel(client_id: int, params: Dictionary, command_i
 					if fallback_frames is Array and not fallback_frames.is_empty():
 						snapshot["frames"] = fallback_frames
 						snapshot_diagnostics["fallback_source"] = "debugger_bridge"
-						snapshot_diagnostics["fallback_frame_count"] = fallback.get("total_frames", fallback_frames.size())
+						snapshot_diagnostics["fallback_frame_count"] = (
+							fallback.get("total_frames", fallback_frames.size())
+						)
 						if needs_lines:
 							var formatted_lines := _format_frames_as_lines(fallback_frames)
 							snapshot["lines"] = formatted_lines
@@ -515,14 +593,25 @@ func _handle_get_stack_frames_panel(client_id: int, params: Dictionary, command_
 			if snapshot.has("lines") and snapshot["lines"] is Array:
 				existing_lines = snapshot["lines"]
 			var needs_lines := existing_lines.is_empty()
-			var require_debugger_frames := refresh_requested or needs_stack or needs_lines or needs_enrichment
+			var require_debugger_frames := (
+				refresh_requested
+				or needs_stack
+				or needs_lines
+				or needs_enrichment
+			)
 			if require_debugger_frames and debugger_bridge.has_method("get_cached_stack_info"):
-				var debugger_snapshot := await _fetch_debugger_stack_frames(debugger_bridge, resolved_session_id, refresh_requested)
+				var debugger_snapshot := await _fetch_debugger_stack_frames(
+					debugger_bridge,
+					resolved_session_id,
+					refresh_requested,
+				)
 				var fallback_frames := debugger_snapshot.get("frames", [])
 				if fallback_frames is Array and not fallback_frames.is_empty():
 					snapshot["frames"] = fallback_frames
 					snapshot_diagnostics["fallback_source"] = "debugger_bridge"
-					snapshot_diagnostics["fallback_frame_count"] = debugger_snapshot.get("total_frames", fallback_frames.size())
+					snapshot_diagnostics["fallback_frame_count"] = (
+						debugger_snapshot.get("total_frames", fallback_frames.size())
+					)
 					if needs_lines or snapshot.get("lines", []).is_empty():
 						var formatted_lines := _format_stack_frames_panel_lines(fallback_frames)
 						if not formatted_lines.is_empty():
@@ -568,7 +657,11 @@ func _handle_get_stack_frames_panel(client_id: int, params: Dictionary, command_
 	_send_success(client_id, response, command_id)
 
 
-func _fetch_debugger_stack_frames(debugger_bridge: MCPDebuggerBridge, session_id: int, refresh_requested: bool) -> Dictionary:
+func _fetch_debugger_stack_frames(
+		debugger_bridge: MCPDebuggerBridge,
+		session_id: int,
+		refresh_requested: bool,
+) -> Dictionary:
 	if debugger_bridge == null or session_id < 0:
 		return { }
 	var result := { }
@@ -583,7 +676,10 @@ func _fetch_debugger_stack_frames(debugger_bridge: MCPDebuggerBridge, session_id
 		return result
 
 	var refreshed_result = await debugger_bridge.get_call_stack(session_id)
-	if typeof(refreshed_result) == TYPE_DICTIONARY and refreshed_result.get("frames", []).is_empty() == false:
+	if (
+		typeof(refreshed_result) == TYPE_DICTIONARY
+		and refreshed_result.get("frames", []).is_empty() == false
+	):
 		return refreshed_result
 
 	var log_frames := _build_frames_from_debug_output()
@@ -615,7 +711,11 @@ func _frames_need_enrichment(frames: Array) -> bool:
 func _handle_clear_debug_output(client_id: int, command_id: String) -> void:
 	var publisher := _get_debug_output_publisher()
 	if publisher == null or not publisher.has_method("clear_log_output"):
-		_send_error(client_id, "Cannot clear Output panel because the debug output publisher is unavailable.", command_id)
+		_send_error(
+			client_id,
+			"Cannot clear Output panel because the debug output publisher is unavailable.",
+			command_id,
+		)
 		return
 
 	var result := publisher.clear_log_output()
@@ -631,7 +731,11 @@ func _handle_clear_debug_output(client_id: int, command_id: String) -> void:
 func _handle_clear_editor_errors(client_id: int, command_id: String) -> void:
 	var publisher := _get_debug_output_publisher()
 	if publisher == null or not publisher.has_method("clear_errors_panel"):
-		_send_error(client_id, "Cannot clear Errors tab because the debug output publisher is unavailable.", command_id)
+		_send_error(
+			client_id,
+			"Cannot clear Errors tab because the debug output publisher is unavailable.",
+			command_id,
+		)
 		return
 
 	var result := publisher.clear_errors_panel()
@@ -671,7 +775,11 @@ func _capture_editor_errors_snapshot() -> Dictionary:
 		}
 
 	var search_roots: Array = []
-	var editor_node = Engine.get_singleton("EditorNode") if Engine.has_singleton("EditorNode") else null
+	var editor_node = (
+		Engine.get_singleton("EditorNode")
+		if Engine.has_singleton("EditorNode")
+		else null
+	)
 	if editor_node:
 		if editor_node.has_method("get_log"):
 			var editor_log = editor_node.call("get_log")
@@ -770,7 +878,11 @@ func _find_errors_tab_in_editor_log(root: Node) -> Dictionary:
 
 		if candidate is TabContainer:
 			var tab_container: TabContainer = candidate
-			var tab_count: int = tab_container.get_tab_count() if tab_container.has_method("get_tab_count") else tab_container.get_child_count()
+			var tab_count: int = (
+				tab_container.get_tab_count()
+				if tab_container.has_method("get_tab_count")
+				else tab_container.get_child_count()
+			)
 			for i in range(tab_count):
 				var title := ""
 				if tab_container.has_method("get_tab_title"):
@@ -888,7 +1000,11 @@ func _collect_tree_item_lines(item: TreeItem, lines: Array, depth: int, column_c
 func _is_text_display_control_local(control: Control) -> bool:
 	if not is_instance_valid(control):
 		return false
-	return control.is_class("TextEdit") or control.is_class("CodeEdit") or control.is_class("RichTextLabel")
+	return (
+		control.is_class("TextEdit")
+		or control.is_class("CodeEdit")
+		or control.is_class("RichTextLabel")
+	)
 
 
 func _extract_text_from_control_local(control: Object) -> String:
@@ -1008,7 +1124,11 @@ func _format_frames_as_lines(frames: Array) -> Array:
 				location += ":%d" % line_num
 		if location.is_empty():
 			location = String(frame.get("location", "unknown location"))
-		var fn_display := function_name if function_name is String and not function_name.is_empty() else "(anonymous)"
+		var fn_display := (
+			function_name
+			if function_name is String and not function_name.is_empty()
+			else "(anonymous)"
+		)
 		lines.append("#%d %s — %s" % [index, fn_display, location])
 	return lines
 

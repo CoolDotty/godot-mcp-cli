@@ -5,7 +5,7 @@
 ##   - check_formatter            — Check if the formatter addon/binary is installed
 ##   - install_formatter_addon    — Download the addon (godot-addon.zip) from GitHub releases
 ##   - install_formatter_binary   — Download the platform binary from GitHub releases
-##   - format_gdscript            — Format GDScript file(s) — supports glob patterns like * or **/*.gd
+##   - format_gdscript          - Format .gd files — supports * and **/*.gd globs
 ##
 ## Async operations use HTTPRequest + signals + a state tracker,
 ## since the MCP server core calls process_command synchronously.
@@ -37,7 +37,8 @@ enum AsyncOp {
 	DOWNLOAD_BINARY_ZIP,
 }
 
-var _async_state: Dictionary = { } # key → { op, client_id, command_id, http, http_callback, timer, ... }
+var _async_state: Dictionary = { }
+# key → { op, client_id, command_id, http, http_callback, timer, ... }
 
 
 # ---------------------------------------------------------------------------
@@ -76,7 +77,9 @@ func _binary_path() -> String:
 # ---------------------------------------------------------------------------
 # Command dispatch
 # ---------------------------------------------------------------------------
-func process_command(client_id: int, command_type: String, params: Dictionary, command_id: String) -> bool:
+func process_command(cid: int, command_type: String, params: Dictionary, cmdid: String) -> bool:
+	var client_id := cid
+	var command_id := cmdid
 	match command_type:
 		"check_formatter":
 			_check_formatter(client_id, params, command_id)
@@ -93,24 +96,27 @@ func process_command(client_id: int, command_type: String, params: Dictionary, c
 		"format_all_gdscript":
 			_format_all_gdscript(client_id, params, command_id)
 			return true
+		"lint_gdscript":
+			_lint_gdscript(client_id, params, command_id)
+			return true
 	return false
 
 
 # ---------------------------------------------------------------------------
 # Tool: check_formatter
 # ---------------------------------------------------------------------------
-func _check_formatter(client_id: int, params: Dictionary, command_id: String) -> void:
+func _check_formatter(client_id: int, _params: Dictionary, command_id: String) -> void:
 	var addon := FileAccess.file_exists(GDQ_PLUGIN_CFG)
 	var binary := FileAccess.file_exists(_binary_path())
 	var status := ""
 	if addon and binary:
 		status = "Formatter addon and binary are both installed and ready to use."
 	elif addon:
-		status = "Formatter addon is installed, but the binary has not been downloaded yet. Use install_formatter_binary."
+		status = "Addon installed but binary missing. Use install_formatter_binary."
 	elif binary:
-		status = "Formatter binary is installed, but the addon is not in this project. Use install_formatter_addon."
+		status = "Binary installed but addon missing. Use install_formatter_addon."
 	else:
-		status = "Neither the formatter addon nor binary are installed. Use install_formatter_addon to get started."
+		status = "Neither addon nor binary installed. Use install_formatter_addon first."
 
 	_send_success(
 		client_id,
@@ -221,7 +227,13 @@ func _cleanup_async(key: String) -> void:
 # ---------------------------------------------------------------------------
 # Shared: release info response router
 # ---------------------------------------------------------------------------
-func _on_release_info_received(http_result: int, response_code: int, _headers: PackedStringArray, body: PackedByteArray, http: HTTPRequest) -> void:
+func _on_release_info_received(
+		_http_result: int,
+		response_code: int,
+		_headers: PackedStringArray,
+		body: PackedByteArray,
+		http: HTTPRequest,
+) -> void:
 	var key := _find_key_by_http(http)
 	if key.is_empty():
 		return
@@ -232,7 +244,8 @@ func _on_release_info_received(http_result: int, response_code: int, _headers: P
 
 	if response_code != 200:
 		_cleanup_async(key)
-		return _send_error(client_id, "Failed to fetch release info (HTTP %d)" % response_code, command_id)
+		var msg := "Failed to fetch release info (HTTP %d)" % response_code
+		return _send_error(client_id, msg, command_id)
 
 	var json := JSON.parse_string(body.get_string_from_utf8())
 	if not json or not json.has("assets"):
@@ -252,7 +265,7 @@ func _on_release_info_received(http_result: int, response_code: int, _headers: P
 # ---------------------------------------------------------------------------
 # Tool: install_formatter_addon
 # ---------------------------------------------------------------------------
-func _install_formatter_addon(client_id: int, params: Dictionary, command_id: String) -> void:
+func _install_formatter_addon(client_id: int, _params: Dictionary, command_id: String) -> void:
 	if FileAccess.file_exists(GDQ_PLUGIN_CFG):
 		_send_success(
 			client_id,
@@ -295,7 +308,13 @@ func _on_addon_release_found(json: Dictionary, state: Dictionary, http: HTTPRequ
 	http.request(download_url)
 
 
-func _on_addon_zip_downloaded(http_result: int, response_code: int, _headers: PackedStringArray, body: PackedByteArray, http: HTTPRequest) -> void:
+func _on_addon_zip_downloaded(
+		_http_result: int,
+		response_code: int,
+		_headers: PackedStringArray,
+		body: PackedByteArray,
+		http: HTTPRequest,
+) -> void:
 	var key := _find_key_by_http(http)
 	if key.is_empty():
 		return
@@ -306,7 +325,8 @@ func _on_addon_zip_downloaded(http_result: int, response_code: int, _headers: Pa
 
 	if response_code != 200 or body.is_empty():
 		_cleanup_async(key)
-		return _send_error(client_id, "Failed to download addon ZIP (HTTP %d)" % response_code, command_id)
+		var dl_msg := "Failed to download addon ZIP (HTTP %d)" % response_code
+		return _send_error(client_id, dl_msg, command_id)
 
 	# Write temp ZIP and extract
 	var tmp_zip := OS.get_temp_dir().path_join("gdscript_fmt_addon_%d.zip" % Time.get_ticks_msec())
@@ -358,7 +378,7 @@ func _on_addon_zip_downloaded(http_result: int, response_code: int, _headers: Pa
 			"tag": tag,
 			"path": GDQ_ADDON_PATH,
 			"files": extracted,
-			"message": "Addon v%s installed. Enable it in Project → Project Settings → Plugins, then run install_formatter_binary." % [tag],
+			"message": "Addon v%s installed. Enable in Project Settings → Plugins." % [tag],
 		},
 		command_id,
 	)
@@ -367,7 +387,7 @@ func _on_addon_zip_downloaded(http_result: int, response_code: int, _headers: Pa
 # ---------------------------------------------------------------------------
 # Tool: install_formatter_binary
 # ---------------------------------------------------------------------------
-func _install_formatter_binary(client_id: int, params: Dictionary, command_id: String) -> void:
+func _install_formatter_binary(client_id: int, _params: Dictionary, command_id: String) -> void:
 	_start_install(client_id, command_id, AsyncOp.FETCH_RELEASE_INFO_BINARY, "binary")
 
 
@@ -404,7 +424,13 @@ func _on_binary_release_found(json: Dictionary, state: Dictionary, http: HTTPReq
 	http.request(download_url)
 
 
-func _on_binary_zip_downloaded(http_result: int, response_code: int, _headers: PackedStringArray, body: PackedByteArray, http: HTTPRequest) -> void:
+func _on_binary_zip_downloaded(
+		_http_result: int,
+		response_code: int,
+		_headers: PackedStringArray,
+		body: PackedByteArray,
+		http: HTTPRequest,
+) -> void:
 	var key := _find_key_by_http(http)
 	if key.is_empty():
 		return
@@ -416,7 +442,8 @@ func _on_binary_zip_downloaded(http_result: int, response_code: int, _headers: P
 
 	if response_code != 200 or body.is_empty():
 		_cleanup_async(key)
-		return _send_error(client_id, "Failed to download binary ZIP (HTTP %d, size %d)" % [response_code, body.size()], command_id)
+		var dl_msg := "Failed download binary ZIP (HTTP %d, size %d)" % [response_code, body.size()]
+		return _send_error(client_id, dl_msg, command_id)
 
 	# Write temp ZIP, extract, install
 	var cache_dir := _cache_dir()
@@ -498,7 +525,8 @@ func _format_gdscript(client_id: int, params: Dictionary, command_id: String) ->
 	if script_path.contains("*"):
 		var matches := _resolve_glob(script_path)
 		if matches.is_empty():
-			return _send_error(client_id, "No .gd files matched pattern: %s" % script_path, command_id)
+			var nf_msg := "No .gd files matched pattern: %s" % script_path
+			return _send_error(client_id, nf_msg, command_id)
 
 		var results: Array[Dictionary] = []
 		var formatted_count := 0
@@ -524,7 +552,8 @@ func _format_gdscript(client_id: int, params: Dictionary, command_id: String) ->
 				"unchanged": unchanged_count,
 				"errors": error_count,
 				"files": results,
-				"message": "%d formatted, %d unchanged, %d errors out of %d files" % [formatted_count, unchanged_count, error_count, matches.size()],
+				"message": "%d formatted, %d unchanged, %d errors of %d files"
+				% [formatted_count, unchanged_count, error_count, matches.size()],
 			},
 			command_id,
 		)
@@ -547,7 +576,7 @@ func _format_gdscript(client_id: int, params: Dictionary, command_id: String) ->
 			"formatted": result.get("formatted", ""),
 			"write_back": result.get("write_back", true),
 			"changed": result.get("changed", false),
-			"message": "Script formatted." if result.get("write_back", true) else "Formatting complete (dry run).",
+			"message": "Script formatted." if result.get("write_back", true) else "Formatting done (dry).",
 		},
 		command_id,
 	)
@@ -561,6 +590,189 @@ func _format_all_gdscript(client_id: int, params: Dictionary, command_id: String
 	var merged := params.duplicate()
 	merged["script_path"] = "*"
 	_format_gdscript(client_id, merged, command_id)
+
+
+# ---------------------------------------------------------------------------
+# Tool: lint_gdscript — lint .gd files using the formatter's built-in linter
+# ---------------------------------------------------------------------------
+func _lint_gdscript(client_id: int, params: Dictionary, command_id: String) -> void:
+	var script_path: String = params.get("script_path", "")
+
+	if script_path.is_empty():
+		return _send_error(client_id, "Required: script_path", command_id)
+
+	if not script_path.begins_with("res://"):
+		script_path = "res://" + script_path
+
+	# Detect glob patterns
+	if script_path.contains("*"):
+		var matches := _resolve_glob(script_path)
+		if matches.is_empty():
+			return _send_error(client_id, "No .gd files matched pattern: %s" % script_path, command_id)
+
+		var results: Array[Dictionary] = []
+		var total_issues := 0
+		var files_with_issues := 0
+
+		for path in matches:
+			var result := _lint_single(path, params)
+			if result.has("error"):
+				result["script_path"] = path
+				results.append(result)
+			else:
+				var issue_count := (result.get("issues", []) as Array).size()
+				total_issues += issue_count
+				if issue_count > 0:
+					files_with_issues += 1
+				results.append(result)
+
+		return _send_success(
+			client_id,
+			{
+				"pattern": script_path,
+				"total_files": matches.size(),
+				"files_with_issues": files_with_issues,
+				"total_issues": total_issues,
+				"files": results,
+				"message": "%d issues across %d/%d files" % [total_issues, files_with_issues, matches.size()],
+			},
+			command_id,
+		)
+
+	# Single file path
+	if not FileAccess.file_exists(script_path):
+		return _send_error(client_id, "File not found: %s" % script_path, command_id)
+
+	if not script_path.ends_with(".gd"):
+		return _send_error(client_id, "Not a .gd file: %s" % script_path, command_id)
+
+	var result := _lint_single(script_path, params)
+	if result.has("error"):
+		return _send_error(client_id, result["error"], command_id)
+
+	var issues: Array = result.get("issues", [])
+	_send_success(
+		client_id,
+		{
+			"script_path": script_path,
+			"issue_count": issues.size(),
+			"issues": issues,
+			"message": "Lint complete: %d issue(s) found" % issues.size(),
+		},
+		command_id,
+	)
+
+
+# ---------------------------------------------------------------------------
+# Core: lint a single .gd file, returns {issues, script_path} or {error}
+# ---------------------------------------------------------------------------
+func _lint_single(script_path: String, params: Dictionary) -> Dictionary:
+	var disabled_rules: String = params.get("disabled_rules", "")
+	var max_line_length: int = params.get("max_line_length", 0)
+	var pretty: bool = params.get("pretty", false)
+
+	# Resolve binary
+	var binary := _binary_path()
+	if not FileAccess.file_exists(binary):
+		var test_out: Array = []
+		if OS.execute("gdscript-formatter", ["--version"], test_out) != OK:
+			return { "error": "No binary at %s; 'gdscript-formatter' not on PATH." % binary, "script_path": script_path }
+		binary = "gdscript-formatter"
+
+	var src_path := ProjectSettings.globalize_path(script_path)
+
+	# Build arguments: gdscript-formatter lint [opts] path
+	var args := PackedStringArray()
+	args.push_back("lint")
+
+	if not disabled_rules.is_empty():
+		args.push_back("--disable")
+		args.push_back(disabled_rules)
+
+	if max_line_length > 0:
+		args.push_back("--max-line-length")
+		args.push_back(str(max_line_length))
+
+	if pretty:
+		args.push_back("--pretty")
+
+	args.push_back(src_path)
+
+	# Execute linter
+	var cmd_out: Array = []
+	var exit_code := OS.execute(binary, args, cmd_out)
+
+	# Parse output lines into structured issues
+	var issues: Array[Dictionary] = []
+	var raw_output := ""
+	if cmd_out.size() > 0:
+		raw_output = str(cmd_out[0] if cmd_out[0] is String else "\n".join(cmd_out))
+
+	if not raw_output.is_empty():
+		for line in raw_output.split("\n", false):
+			var trimmed := line.strip_edges()
+			if trimmed.is_empty():
+				continue
+			var issue := _parse_lint_line(trimmed)
+			if not issue.is_empty():
+				issues.append(issue)
+
+	if exit_code != OK and issues.is_empty():
+		return { "error": "Linter exited with code %d: %s" % [exit_code, raw_output.strip_edges()], "script_path": script_path }
+
+	return {
+		"script_path": script_path,
+		"issues": issues,
+		"issue_count": issues.size(),
+		"exit_code": exit_code,
+	}
+
+
+## Parse a lint output line in format: filepath:line:rule:severity: description
+func _parse_lint_line(line: String) -> Dictionary:
+	# Expected format: filepath:line:rule:severity: description
+	# Example: res://scripts/player.gd:10:function-name:warning: Function name should be snake_case
+	var colon_idx := line.find(":")
+	if colon_idx == -1:
+		return { }
+
+	var file_part := line.substr(0, colon_idx)
+	var rest := line.substr(colon_idx + 1)
+
+	# Parse line number
+	var line_colon := rest.find(":")
+	if line_colon == -1:
+		return { }
+	var line_str := rest.substr(0, line_colon)
+	var line_num := -1
+	if line_str.is_valid_int():
+		line_num = int(line_str)
+	rest = rest.substr(line_colon + 1)
+
+	# Parse rule name
+	var rule_colon := rest.find(":")
+	if rule_colon == -1:
+		return { }
+	var rule := rest.substr(0, rule_colon)
+	rest = rest.substr(rule_colon + 1)
+
+	# Parse severity
+	var severity_colon := rest.find(":")
+	var severity := ""
+	var description := ""
+	if severity_colon != -1:
+		severity = rest.substr(0, severity_colon)
+		description = rest.substr(severity_colon + 1).strip_edges()
+	else:
+		severity = rest.strip_edges()
+
+	return {
+		"file": file_part,
+		"line": line_num,
+		"rule": rule,
+		"severity": severity,
+		"description": description,
+	}
 
 
 # ---------------------------------------------------------------------------
@@ -578,7 +790,8 @@ func _format_single(script_path: String, params: Dictionary) -> Dictionary:
 	if not FileAccess.file_exists(binary):
 		var test_out: Array = []
 		if OS.execute("gdscript-formatter", ["--version"], test_out) != OK:
-			return { "error": "No binary at %s and 'gdscript-formatter' not on PATH. Use install_formatter_binary first." % binary, "script_path": script_path }
+			var msg := "No binary at %s; 'gdscript-formatter' not on PATH." % binary
+			return { "error": msg, "script_path": script_path }
 		binary = "gdscript-formatter"
 
 	# Read source
@@ -624,8 +837,13 @@ func _format_single(script_path: String, params: Dictionary) -> Dictionary:
 		DirAccess.remove_absolute(tmp_path)
 
 	if exit_code != OK:
-		var detail: String = cmd_out[0].strip_edges() if cmd_out.size() > 0 else "no output"
-		return { "error": "formatter exit %d: %s" % [exit_code, detail], "script_path": script_path }
+		var detail: String
+		if cmd_out.size() > 0:
+			detail = cmd_out[0].strip_edges()
+		else:
+			detail = "no output"
+		var err_msg := "formatter exit %d: %s" % [exit_code, detail]
+		return { "error": err_msg, "script_path": script_path }
 
 	var changed := source_content != formatted
 
@@ -683,7 +901,12 @@ func _resolve_glob(pattern: String) -> Array[String]:
 	return results
 
 
-func _walk_and_match(current_dir: String, res_prefix: String, pattern_parts: Array[String], results: Array[String]) -> void:
+func _walk_and_match(
+		current_dir: String,
+		_res_prefix: String,
+		pattern_parts: Array[String],
+		results: Array[String],
+) -> void:
 	var abs_dir := ProjectSettings.globalize_path(current_dir)
 	var dir := DirAccess.open(abs_dir)
 	if not dir:
@@ -705,7 +928,7 @@ func _walk_and_match(current_dir: String, res_prefix: String, pattern_parts: Arr
 				fname = dir.get_next()
 				continue
 			# Always recurse — the glob matching happens at the file level
-			_walk_and_match(rel_path + "/", res_prefix, pattern_parts, results)
+			_walk_and_match(rel_path + "/", _res_prefix, pattern_parts, results)
 		else:
 			if not fname.ends_with(".gd"):
 				fname = dir.get_next()

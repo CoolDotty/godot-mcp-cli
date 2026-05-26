@@ -2,7 +2,12 @@
 class_name MCPNodeCommands
 extends MCPBaseCommandProcessor
 
-func process_command(client_id: int, command_type: String, params: Dictionary, command_id: String) -> bool:
+func process_command(
+		client_id: int,
+		command_type: String,
+		params: Dictionary,
+		command_id: String,
+) -> bool:
 	match command_type:
 		"create_node":
 			_create_node(client_id, params, command_id)
@@ -153,7 +158,11 @@ func _update_node_property(client_id: int, params: Dictionary, command_id: Strin
 
 	# Check if the property exists
 	if not property_name in node:
-		return _send_error(client_id, "Property %s does not exist on node %s" % [property_name, node_path], command_id)
+		return _send_error(
+			client_id,
+			"Property %s does not exist on node %s" % [property_name, node_path],
+			command_id,
+		)
 
 	# Parse property value for Godot types
 	var parsed_value = _parse_property_value(property_value)
