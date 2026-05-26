@@ -20,6 +20,7 @@ Includes an integrated HTTP server for the MCP transport layer.
 - **Scene Operations**: Create, delete, open, and save scenes; query project info and current scene state
 - **Asset Management**: List assets by type and enumerate project files
 - **Project Reload**: Restart editor, reload scenes, or rescan filesystem for external changes
+- **GDScript Formatting**: Install, check, and run the GDQuest GDScript Formatter — supports glob patterns (`*`, `**/*.gd`) for batch formatting
 - **Debug Output Access**: Snapshot logs with `get_debug_output` or tail them live via streaming
 - **Stack Trace Capture**: Pull the editor's Stack Trace text or grab structured frames
 - **Editor Automation**: Execute GDScript in editor context via `execute_editor_script`
