@@ -429,8 +429,14 @@ func _register_builtin_tools() -> void:
 			{
 				"type": "object",
 				"properties": {
-					"parent_path": { "type": "string", "description": "Path to the parent node (default: root)" },
-					"node_type": { "type": "string", "description": "Node class name (e.g. Node2D, Sprite2D)" },
+					"parent_path": {
+						"type": "string",
+						"description": "Path to the parent node (default: root)",
+					},
+					"node_type": {
+						"type": "string",
+						"description": "Node class name (e.g. Node2D, Sprite2D)",
+					},
 					"node_name": { "type": "string", "description": "Name for the new node" },
 				},
 				"required": ["node_type", "node_name"],
@@ -462,7 +468,10 @@ func _register_builtin_tools() -> void:
 				"type": "object",
 				"properties": {
 					"node_path": { "type": "string", "description": "Path to the node" },
-					"property": { "type": "string", "description": "Name of the property to update" },
+					"property": {
+						"type": "string",
+						"description": "Name of the property to update",
+					},
 					"value": { "description": "New value for the property" },
 				},
 				"required": ["node_path", "property", "value"],
@@ -493,7 +502,10 @@ func _register_builtin_tools() -> void:
 			{
 				"type": "object",
 				"properties": {
-					"parent_path": { "type": "string", "description": "Optional parent path to list children of" },
+					"parent_path": {
+						"type": "string",
+						"description": "Optional parent path to list children of",
+					},
 				},
 			},
 			"list_nodes",
@@ -524,7 +536,10 @@ func _register_builtin_tools() -> void:
 				"type": "object",
 				"properties": {
 					"script_path": { "type": "string", "description": "Path to the script file" },
-					"node_path": { "type": "string", "description": "Path to the node with a script attached" },
+					"node_path": {
+						"type": "string",
+						"description": "Path to the node with a script attached",
+					},
 				},
 				"oneOf": [
 					{ "required": ["script_path"] },
@@ -663,7 +678,10 @@ func _register_builtin_tools() -> void:
 			{
 				"type": "object",
 				"properties": {
-					"save": { "type": "boolean", "description": "Save before restarting (default: true)" },
+					"save": {
+						"type": "boolean",
+						"description": "Save before restarting (default: true)",
+					},
 				},
 			},
 			"reload_project",
@@ -677,7 +695,11 @@ func _register_builtin_tools() -> void:
 			{
 				"type": "object",
 				"properties": {
-					"scene_path": { "type": "string", "description": "Optional specific scene path to reload (default: current scene)" },
+					"scene_path": {
+						"type": "string",
+						"description": "Optional specific scene path to reload (default: " +
+						"current scene)",
+					},
 				},
 			},
 			"reload_scene",
@@ -687,7 +709,8 @@ func _register_builtin_tools() -> void:
 	register_tool(
 		ToolDefinition.new(
 			"get_project_structure",
-			"Get a summary of the project file structure (directories and file counts by extension).",
+			"Get a summary of the project file structure (directories and " +
+			"file counts by extension).",
 			{
 				"type": "object",
 				"properties": { },
@@ -699,7 +722,8 @@ func _register_builtin_tools() -> void:
 	register_tool(
 		ToolDefinition.new(
 			"list_project_resources",
-			"List project resources categorized by type (scenes, scripts, textures, audio, models, resources).",
+			"List project resources categorized by type (scenes, scripts, " +
+			"textures, audio, models, resources).",
 			{
 				"type": "object",
 				"properties": { },
@@ -738,12 +762,23 @@ func _register_builtin_tools() -> void:
 	register_tool(
 		ToolDefinition.new(
 			"rescan_filesystem",
-			"Rescan the project filesystem and reimport changed assets. Use when files have been modified externally (e.g. by AI writing scripts, textures) and the editor needs to pick up the changes.",
+			"Rescan the project filesystem and reimport changed assets. " +
+			"Use when files have been modified externally (e.g. " +
+			"by AI writing scripts, textures) and the editor needs to pick up the changes.",
 			{
 				"type": "object",
 				"properties": {
-					"paths": { "type": "array", "items": { "type": "string" }, "description": "Optional list of specific file paths to reimport (e.g. ['res://icon.svg', 'res://scenes/main.tscn'])" },
-					"sources": { "type": "boolean", "description": "Also re-scan script sources for import changes (default: true)" },
+					"paths": {
+						"type": "array",
+						"items": { "type": "string" },
+						"description": "Optional list of specific file paths to reimport (e.g. " +
+						"['res://icon.svg', 'res://scenes/main.tscn'])",
+					},
+					"sources": {
+						"type": "boolean",
+						"description": "Also re-scan script sources for import changes " +
+						"(default: true)",
+					},
 				},
 			},
 			"rescan_filesystem",
@@ -758,7 +793,10 @@ func _register_builtin_tools() -> void:
 			{
 				"type": "object",
 				"properties": {
-					"include_properties": { "type": "boolean", "description": "Include node properties" },
+					"include_properties": {
+						"type": "boolean",
+						"description": "Include node properties",
+					},
 					"include_scripts": { "type": "boolean", "description": "Include script info" },
 					"max_depth": { "type": "number", "description": "Maximum depth to traverse" },
 				},
@@ -783,7 +821,8 @@ func _register_builtin_tools() -> void:
 	register_tool(
 		ToolDefinition.new(
 			"install_formatter_addon",
-			"Download the GDQuest GDScript Formatter addon files into the project. Requires enabling the plugin in Project → Project Settings → Plugins afterwards.",
+			"Download the GDQuest GDScript Formatter addon files into the project. " +
+			"Requires enabling the plugin in Project → Project Settings → Plugins afterwards.",
 			{
 				"type": "object",
 				"properties": { },
@@ -795,7 +834,8 @@ func _register_builtin_tools() -> void:
 	register_tool(
 		ToolDefinition.new(
 			"install_formatter_binary",
-			"Download and install the platform-specific GDScript Formatter binary from GitHub releases. Stores it in the editor cache directory.",
+			"Download and install the platform-specific GDScript Formatter " +
+			"binary from GitHub releases. Stores it in the editor cache directory.",
 			{
 				"type": "object",
 				"properties": { },
@@ -807,16 +847,39 @@ func _register_builtin_tools() -> void:
 	register_tool(
 		ToolDefinition.new(
 			"format_gdscript",
-			"Format GDScript file(s) using the installed formatter. Accepts a single file path or a glob pattern (e.g. *, **/*.gd, addons/*.gd). Supports indent style, safe mode, code reordering, and optional dry-run.",
+			"Format GDScript file(s) using the installed formatter. " +
+			"Accepts a single file path or a glob pattern (e.g. *, **/*.gd, addons/*.gd). " +
+			"Supports indent style, safe mode, code reordering, and optional dry-run.",
 			{
 				"type": "object",
 				"properties": {
-					"script_path": { "type": "string", "description": "Path to a .gd file or glob pattern (res:// or relative). Use * to format all .gd files." },
-					"use_spaces": { "type": "boolean", "description": "Use spaces instead of tabs" },
-					"indent_size": { "type": "number", "description": "Indent size when using spaces (default: 4)" },
-					"reorder_code": { "type": "boolean", "description": "Reorder code to follow the GDScript style guide" },
-					"safe_mode": { "type": "boolean", "description": "Skip formatting if it would change code meaning (default: true)" },
-					"write_back": { "type": "boolean", "description": "Write formatted code back to the file (default: true). Set to false for a dry run." },
+					"script_path": {
+						"type": "string",
+						"description": "Path to a .gd file or glob pattern (res:// or relative). " +
+						"Use * to format all .gd files.",
+					},
+					"use_spaces": {
+						"type": "boolean",
+						"description": "Use spaces instead of tabs",
+					},
+					"indent_size": {
+						"type": "number",
+						"description": "Indent size when using spaces (default: 4)",
+					},
+					"reorder_code": {
+						"type": "boolean",
+						"description": "Reorder code to follow the GDScript style guide",
+					},
+					"safe_mode": {
+						"type": "boolean",
+						"description": "Skip formatting if it would change code meaning " +
+						"(default: true)",
+					},
+					"write_back": {
+						"type": "boolean",
+						"description": "Write formatted code back to the file (default: true). " +
+						"Set to false for a dry run.",
+					},
 				},
 				"required": ["script_path"],
 			},
@@ -827,15 +890,33 @@ func _register_builtin_tools() -> void:
 	register_tool(
 		ToolDefinition.new(
 			"format_all_gdscript",
-			"Format every .gd file in the project. Convenience wrapper that calls format_gdscript with a '*' pattern.",
+			"Format every .gd file in the project. " +
+			"Convenience wrapper that calls format_gdscript with a '*' pattern.",
 			{
 				"type": "object",
 				"properties": {
-					"use_spaces": { "type": "boolean", "description": "Use spaces instead of tabs" },
-					"indent_size": { "type": "number", "description": "Indent size when using spaces (default: 4)" },
-					"reorder_code": { "type": "boolean", "description": "Reorder code to follow the GDScript style guide" },
-					"safe_mode": { "type": "boolean", "description": "Skip formatting if it would change code meaning (default: true)" },
-					"write_back": { "type": "boolean", "description": "Write formatted code back to the file (default: true). Set to false for a dry run." },
+					"use_spaces": {
+						"type": "boolean",
+						"description": "Use spaces instead of tabs",
+					},
+					"indent_size": {
+						"type": "number",
+						"description": "Indent size when using spaces (default: 4)",
+					},
+					"reorder_code": {
+						"type": "boolean",
+						"description": "Reorder code to follow the GDScript style guide",
+					},
+					"safe_mode": {
+						"type": "boolean",
+						"description": "Skip formatting if it would change code meaning " +
+						"(default: true)",
+					},
+					"write_back": {
+						"type": "boolean",
+						"description": "Write formatted code back to the file (default: true). " +
+						"Set to false for a dry run.",
+					},
 				},
 			},
 			"format_all_gdscript",
@@ -845,11 +926,16 @@ func _register_builtin_tools() -> void:
 	register_tool(
 		ToolDefinition.new(
 			"list_assets_by_type",
-			"List project assets filtered by type (scripts, scenes, images, audio, fonts, models, shaders, resources, all).",
+			"List project assets filtered by type (scripts, scenes, images, " +
+			"audio, fonts, models, shaders, resources, all).",
 			{
 				"type": "object",
 				"properties": {
-					"type": { "type": "string", "description": "Asset type filter: scripts, scenes, images, audio, fonts, models, shaders, resources, or all" },
+					"type": {
+						"type": "string",
+						"description": "Asset type filter: scripts, scenes, images, audio, " +
+						"fonts, models, shaders, resources, or all",
+					},
 				},
 				"required": ["type"],
 			},
@@ -864,7 +950,11 @@ func _register_builtin_tools() -> void:
 			{
 				"type": "object",
 				"properties": {
-					"extensions": { "type": "array", "items": { "type": "string" }, "description": "File extensions to filter by (e.g. ['.gd', '.tscn'])" },
+					"extensions": {
+						"type": "array",
+						"items": { "type": "string" },
+						"description": "File extensions to filter by (e.g. ['.gd', '.tscn'])",
+					},
 				},
 			},
 			"list_project_files",
@@ -879,7 +969,10 @@ func _register_builtin_tools() -> void:
 			{
 				"type": "object",
 				"properties": {
-					"max_lines": { "type": "number", "description": "Maximum number of lines to return (default 100)" },
+					"max_lines": {
+						"type": "number",
+						"description": "Maximum number of lines to return (default 100)",
+					},
 				},
 			},
 			"get_debug_output",
@@ -894,8 +987,15 @@ func _register_builtin_tools() -> void:
 			{
 				"type": "object",
 				"properties": {
-					"path": { "type": "string", "description": "Path for the new scene file (e.g. res://scenes/level.tscn)" },
-					"root_node_type": { "type": "string", "description": "Root node class name (e.g. Node2D, Node3D, Control). Default: Node" },
+					"path": {
+						"type": "string",
+						"description": "Path for the new scene file (e.g. res://scenes/level.tscn)",
+					},
+					"root_node_type": {
+						"type": "string",
+						"description": "Root node class name (e.g. Node2D, Node3D, Control). " +
+						"Default: Node",
+					},
 				},
 				"required": ["path"],
 			},
@@ -938,9 +1038,15 @@ func _register_builtin_tools() -> void:
 			{
 				"type": "object",
 				"properties": {
-					"script_path": { "type": "string", "description": "Path for the new script (e.g. res://scripts/player.gd)" },
+					"script_path": {
+						"type": "string",
+						"description": "Path for the new script (e.g. res://scripts/player.gd)",
+					},
 					"content": { "type": "string", "description": "Script source code content" },
-					"node_path": { "type": "string", "description": "Optional node path to attach the script to" },
+					"node_path": {
+						"type": "string",
+						"description": "Optional node path to attach the script to",
+					},
 				},
 				"required": ["script_path", "content"],
 			},
@@ -955,8 +1061,14 @@ func _register_builtin_tools() -> void:
 			{
 				"type": "object",
 				"properties": {
-					"script_path": { "type": "string", "description": "Path to the script file to edit" },
-					"content": { "type": "string", "description": "New source code content for the script" },
+					"script_path": {
+						"type": "string",
+						"description": "Path to the script file to edit",
+					},
+					"content": {
+						"type": "string",
+						"description": "New source code content for the script",
+					},
 				},
 				"required": ["script_path", "content"],
 			},
@@ -1011,9 +1123,19 @@ func _register_builtin_tools() -> void:
 			{
 				"type": "object",
 				"properties": {
-					"resource_type": { "type": "string", "description": "Resource class name (e.g. StandardMaterial3D, ShaderMaterial)" },
-					"resource_path": { "type": "string", "description": "Path for the new resource file" },
-					"properties": { "type": "object", "description": "Optional initial properties" },
+					"resource_type": {
+						"type": "string",
+						"description": "Resource class name (e.g. " +
+						"StandardMaterial3D, ShaderMaterial)",
+					},
+					"resource_path": {
+						"type": "string",
+						"description": "Path for the new resource file",
+					},
+					"properties": {
+						"type": "object",
+						"description": "Optional initial properties",
+					},
 				},
 				"required": ["resource_type", "resource_path"],
 			},
@@ -1029,10 +1151,19 @@ func _register_builtin_tools() -> void:
 			{
 				"type": "object",
 				"properties": {
-					"include_properties": { "type": "boolean", "description": "Include node properties in the snapshot" },
-					"include_scripts": { "type": "boolean", "description": "Include script info in the snapshot" },
+					"include_properties": {
+						"type": "boolean",
+						"description": "Include node properties in the snapshot",
+					},
+					"include_scripts": {
+						"type": "boolean",
+						"description": "Include script info in the snapshot",
+					},
 					"max_depth": { "type": "number", "description": "Maximum depth to traverse" },
-					"timeout_ms": { "type": "number", "description": "Timeout in milliseconds (default: 2000)" },
+					"timeout_ms": {
+						"type": "number",
+						"description": "Timeout in milliseconds (default: 2000)",
+					},
 				},
 			},
 			"get_runtime_scene_structure",
@@ -1046,10 +1177,22 @@ func _register_builtin_tools() -> void:
 			{
 				"type": "object",
 				"properties": {
-					"expression": { "type": "string", "description": "GDScript expression to evaluate (e.g. player.health)" },
-					"context_path": { "type": "string", "description": "Optional node path to use as evaluation context" },
-					"capture_prints": { "type": "boolean", "description": "Capture print() output during evaluation (default: true)" },
-					"timeout_ms": { "type": "number", "description": "Timeout in milliseconds (default: 2000)" },
+					"expression": {
+						"type": "string",
+						"description": "GDScript expression to evaluate (e.g. player.health)",
+					},
+					"context_path": {
+						"type": "string",
+						"description": "Optional node path to use as evaluation context",
+					},
+					"capture_prints": {
+						"type": "boolean",
+						"description": "Capture print() output during evaluation (default: true)",
+					},
+					"timeout_ms": {
+						"type": "number",
+						"description": "Timeout in milliseconds (default: 2000)",
+					},
 				},
 				"required": ["expression"],
 			},
@@ -1064,10 +1207,21 @@ func _register_builtin_tools() -> void:
 			{
 				"type": "object",
 				"properties": {
-					"node_path": { "type": "string", "description": "Path to the node in the current scene" },
-					"position": { "type": "array", "items": { "type": "number" }, "description": "New position as [x, y]" },
+					"node_path": {
+						"type": "string",
+						"description": "Path to the node in the current scene",
+					},
+					"position": {
+						"type": "array",
+						"items": { "type": "number" },
+						"description": "New position as [x, y]",
+					},
 					"rotation": { "type": "number", "description": "New rotation in radians" },
-					"scale": { "type": "array", "items": { "type": "number" }, "description": "New scale as [x, y]" },
+					"scale": {
+						"type": "array",
+						"items": { "type": "number" },
+						"description": "New scale as [x, y]",
+					},
 				},
 				"required": ["node_path"],
 			},
@@ -1143,7 +1297,10 @@ func _register_builtin_tools() -> void:
 			{
 				"type": "object",
 				"properties": {
-					"session_id": { "type": "number", "description": "Optional debugger session ID" },
+					"session_id": {
+						"type": "number",
+						"description": "Optional debugger session ID",
+					},
 				},
 			},
 			"get_stack_trace_panel",
@@ -1157,8 +1314,14 @@ func _register_builtin_tools() -> void:
 			{
 				"type": "object",
 				"properties": {
-					"session_id": { "type": "number", "description": "Optional debugger session ID" },
-					"refresh": { "type": "boolean", "description": "Force refresh from the debugger (default: false)" },
+					"session_id": {
+						"type": "number",
+						"description": "Optional debugger session ID",
+					},
+					"refresh": {
+						"type": "boolean",
+						"description": "Force refresh from the debugger (default: false)",
+					},
 				},
 			},
 			"get_stack_frames_panel",
@@ -1190,7 +1353,10 @@ func _register_builtin_tools() -> void:
 				"type": "object",
 				"properties": {
 					"script_path": { "type": "string", "description": "Path to the script file" },
-					"line": { "type": "number", "description": "Line number of the breakpoint to remove" },
+					"line": {
+						"type": "number",
+						"description": "Line number of the breakpoint to remove",
+					},
 				},
 				"required": ["script_path", "line"],
 			},
@@ -1277,7 +1443,10 @@ func _register_builtin_tools() -> void:
 			{
 				"type": "object",
 				"properties": {
-					"session_id": { "type": "number", "description": "Optional debugger session ID" },
+					"session_id": {
+						"type": "number",
+						"description": "Optional debugger session ID",
+					},
 				},
 			},
 			"debugger_get_call_stack",
@@ -1328,8 +1497,14 @@ func _register_builtin_tools() -> void:
 			{
 				"type": "object",
 				"properties": {
-					"action": { "type": "string", "description": "Input action name (e.g. ui_accept, move_left)" },
-					"strength": { "type": "number", "description": "Action strength between 0.0 and 1.0 (default: 1.0)" },
+					"action": {
+						"type": "string",
+						"description": "Input action name (e.g. ui_accept, move_left)",
+					},
+					"strength": {
+						"type": "number",
+						"description": "Action strength between 0.0 and 1.0 (default: 1.0)",
+					},
 				},
 				"required": ["action"],
 			},
@@ -1360,7 +1535,10 @@ func _register_builtin_tools() -> void:
 				"type": "object",
 				"properties": {
 					"action": { "type": "string", "description": "Input action name to tap" },
-					"duration_ms": { "type": "number", "description": "How long to hold before releasing (default: 100)" },
+					"duration_ms": {
+						"type": "number",
+						"description": "How long to hold before releasing (default: 100)",
+					},
 				},
 				"required": ["action"],
 			},
@@ -1377,8 +1555,14 @@ func _register_builtin_tools() -> void:
 				"properties": {
 					"x": { "type": "number", "description": "X position for the click" },
 					"y": { "type": "number", "description": "Y position for the click" },
-					"button": { "type": "string", "description": "Mouse button: left, right, or middle (default: left)" },
-					"double_click": { "type": "boolean", "description": "Perform a double-click (default: false)" },
+					"button": {
+						"type": "string",
+						"description": "Mouse button: left, right, or middle (default: left)",
+					},
+					"double_click": {
+						"type": "boolean",
+						"description": "Perform a double-click (default: false)",
+					},
 				},
 			},
 			"simulate_mouse_click",
@@ -1412,9 +1596,18 @@ func _register_builtin_tools() -> void:
 					"start_y": { "type": "number", "description": "Starting Y position" },
 					"end_x": { "type": "number", "description": "Ending X position" },
 					"end_y": { "type": "number", "description": "Ending Y position" },
-					"duration_ms": { "type": "number", "description": "Duration of the drag in milliseconds (default: 200)" },
-					"steps": { "type": "number", "description": "Number of intermediate steps (default: 10)" },
-					"button": { "type": "string", "description": "Mouse button: left, right, or middle (default: left)" },
+					"duration_ms": {
+						"type": "number",
+						"description": "Duration of the drag in milliseconds (default: 200)",
+					},
+					"steps": {
+						"type": "number",
+						"description": "Number of intermediate steps (default: 10)",
+					},
+					"button": {
+						"type": "string",
+						"description": "Mouse button: left, right, or middle (default: left)",
+					},
 				},
 				"required": ["start_x", "start_y", "end_x", "end_y"],
 			},
@@ -1429,9 +1622,18 @@ func _register_builtin_tools() -> void:
 			{
 				"type": "object",
 				"properties": {
-					"key": { "type": "string", "description": "Key name to press (e.g. A, Space, Escape)" },
-					"duration_ms": { "type": "number", "description": "How long to hold the key (default: 100)" },
-					"modifiers": { "type": "object", "description": "Modifier keys (e.g. {ctrl: true, shift: false})" },
+					"key": {
+						"type": "string",
+						"description": "Key name to press (e.g. A, Space, Escape)",
+					},
+					"duration_ms": {
+						"type": "number",
+						"description": "How long to hold the key (default: 100)",
+					},
+					"modifiers": {
+						"type": "object",
+						"description": "Modifier keys (e.g. {ctrl: true, shift: false})",
+					},
 				},
 				"required": ["key"],
 			},
@@ -1446,7 +1648,10 @@ func _register_builtin_tools() -> void:
 			{
 				"type": "object",
 				"properties": {
-					"sequence": { "type": "array", "description": "Array of input step objects, each with a type and timing" },
+					"sequence": {
+						"type": "array",
+						"description": "Array of input step objects, each with a type and timing",
+					},
 				},
 				"required": ["sequence"],
 			},
