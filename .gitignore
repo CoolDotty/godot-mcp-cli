@@ -22,6 +22,9 @@ mono_crash.*.json
 # Node.js and npm (server/ deleted — no longer needed)
 server/
 
+# Downloaded third-party Godot addons (not part of this MCP project)
+/addons/GDQuest_GDScript_formatter/
+
 # System files
 .DS_Store
 Thumbs.db

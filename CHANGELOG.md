@@ -8,11 +8,16 @@ All notable changes to this project will be documented in this file.
 - `get_node_warnings` tool to inspect the current scene tree for node configuration warnings
   (configuration warnings shown on nodes in the Scene tree dock)
 - `EditorUtils.collect_scene_tree_warning_entries()` utility for scanning the Scene Tree dock UI
+- **Formatter Tools**: `check_formatter`, `install_formatter_addon`, `install_formatter_binary`,
+  and `format_gdscript` for managing the GDQuest GDScript Formatter addon and formatting `.gd` files
 
 ### Fixed
 - **HTTP server stays responsive when editor window loses focus**: Replaced `_process(delta)` polling
   with a `Timer` node so TCP connection acceptance and request handling continues even when Godot
   throttles the main loop for unfocused windows
+- **`install_formatter_addon` / `install_formatter_binary` timeout**: Increased timeout from 20s to 60s
+  and reset the timer between the GitHub API call and ZIP download phases so slow connections
+  no longer fail the install
 
 ## 1.0.9 - 2025-12-19
 

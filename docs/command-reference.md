@@ -111,6 +111,15 @@ Complete reference for all available tools. These are accessible via `tools/call
 | `simulate_input_sequence` | Execute a timed input sequence | `steps` (required array of step objects) |
 | `get_input_actions` | List all available input actions in the project | (none) |
 
+## Formatter Tools
+
+| Tool | Description | Parameters |
+|------|-------------|------------|
+| `check_formatter` | Check if the GDQuest GDScript Formatter addon and binary are installed | (none) |
+| `install_formatter_addon` | Download the GDQuest GDScript Formatter addon from GitHub releases | (none) |
+| `install_formatter_binary` | Download and install the platform-specific formatter binary | (none) |
+| `format_gdscript` | Format a GDScript file using the installed formatter | `script_path` (required), `use_spaces` (optional bool), `indent_size` (optional number, default 4), `reorder_code` (optional bool), `safe_mode` (optional bool, default true), `write_back` (optional bool, default true) |
+
 ## Asset Tools
 
 | Tool | Description | Parameters |

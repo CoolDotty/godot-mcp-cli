@@ -583,6 +583,51 @@ func _register_builtin_tools() -> void:
 		"get_editor_scene_structure"
 	))
 	
+	# --- GDScript Formatter Tools ---
+	register_tool(ToolDefinition.new(
+		"check_formatter", "Check if the GDQuest GDScript Formatter addon and binary are installed.",
+		{
+			"type": "object",
+			"properties": {},
+		},
+		"check_formatter"
+	))
+
+	register_tool(ToolDefinition.new(
+		"install_formatter_addon", "Download the GDQuest GDScript Formatter addon files into the project. Requires enabling the plugin in Project → Project Settings → Plugins afterwards.",
+		{
+			"type": "object",
+			"properties": {},
+		},
+		"install_formatter_addon"
+	))
+
+	register_tool(ToolDefinition.new(
+		"install_formatter_binary", "Download and install the platform-specific GDScript Formatter binary from GitHub releases. Stores it in the editor cache directory.",
+		{
+			"type": "object",
+			"properties": {},
+		},
+		"install_formatter_binary"
+	))
+
+	register_tool(ToolDefinition.new(
+		"format_gdscript", "Format a GDScript file using the installed formatter binary. Supports indent style, safe mode, code reordering, and optional dry-run.",
+		{
+			"type": "object",
+			"properties": {
+				"script_path": {"type": "string", "description": "Path to the .gd file (res:// or relative)"},
+				"use_spaces": {"type": "boolean", "description": "Use spaces instead of tabs"},
+				"indent_size": {"type": "number", "description": "Indent size when using spaces (default: 4)"},
+				"reorder_code": {"type": "boolean", "description": "Reorder code to follow the GDScript style guide"},
+				"safe_mode": {"type": "boolean", "description": "Skip formatting if it would change code meaning (default: true)"},
+				"write_back": {"type": "boolean", "description": "Write formatted code back to the file (default: true). Set to false for a dry run."},
+			},
+			"required": ["script_path"],
+		},
+		"format_gdscript"
+	))
+
 	# --- Debugger Tools ---
 	register_tool(ToolDefinition.new(
 		"get_debug_output", "Get recent debug output.",

@@ -31,6 +31,7 @@ func _initialize_command_processors():
 	var editor_script_commands = MCPEditorScriptCommands.new()
 	var debugger_commands = MCPDebuggerCommands.new()
 	var input_commands = MCPInputCommands.new()
+	var formatter_commands = MCPFormatterCommands.new()
 	
 	# Set server reference for all processors
 	node_commands._websocket_server = _websocket_server
@@ -41,6 +42,7 @@ func _initialize_command_processors():
 	editor_script_commands._websocket_server = _websocket_server
 	debugger_commands._websocket_server = _websocket_server
 	input_commands._websocket_server = _websocket_server
+	formatter_commands._websocket_server = _websocket_server
 	
 	# Add them to our processor list
 	_command_processors.append(node_commands)
@@ -51,6 +53,7 @@ func _initialize_command_processors():
 	_command_processors.append(editor_script_commands)
 	_command_processors.append(debugger_commands)
 	_command_processors.append(input_commands)
+	_command_processors.append(formatter_commands)
 	
 	# Try to load optional command classes
 	var script_resource_commands = _try_load_optional_command("res://addons/godot_mcp/mcp_script_resource_commands.gd")
@@ -66,6 +69,7 @@ func _initialize_command_processors():
 	add_child(editor_script_commands)
 	add_child(debugger_commands)
 	add_child(input_commands)
+	add_child(formatter_commands)
 	
 	print("Command processors initialized:")
 	print("- Node Commands")
@@ -76,6 +80,7 @@ func _initialize_command_processors():
 	print("- Editor Script Commands")
 	print("- Debugger Commands")
 	print("- Input Commands")
+	print("- Formatter Commands")
 	
 	if script_resource_commands:
 		print("- Script Resource Commands")
