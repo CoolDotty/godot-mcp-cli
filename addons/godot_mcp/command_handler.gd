@@ -3,7 +3,19 @@ class_name MCPCommandHandler
 extends Node
 
 var _websocket_server
-var _command_processors = []
+var _command_processors: Array = []
+
+
+func get_websocket_server():
+	return _websocket_server
+
+
+func set_websocket_server(server) -> void:
+	_websocket_server = server
+
+
+func get_command_processors() -> Array:
+	return _command_processors
 
 
 func _ready():
@@ -36,15 +48,15 @@ func _initialize_command_processors():
 	var formatter_commands = MCPFormatterCommands.new()
 
 	# Set server reference for all processors
-	node_commands._websocket_server = _websocket_server
-	script_commands._websocket_server = _websocket_server
-	scene_commands._websocket_server = _websocket_server
-	project_commands._websocket_server = _websocket_server
-	editor_commands._websocket_server = _websocket_server
-	editor_script_commands._websocket_server = _websocket_server
-	debugger_commands._websocket_server = _websocket_server
-	input_commands._websocket_server = _websocket_server
-	formatter_commands._websocket_server = _websocket_server
+	node_commands.set_websocket_server(_websocket_server)
+	script_commands.set_websocket_server(_websocket_server)
+	scene_commands.set_websocket_server(_websocket_server)
+	project_commands.set_websocket_server(_websocket_server)
+	editor_commands.set_websocket_server(_websocket_server)
+	editor_script_commands.set_websocket_server(_websocket_server)
+	debugger_commands.set_websocket_server(_websocket_server)
+	input_commands.set_websocket_server(_websocket_server)
+	formatter_commands.set_websocket_server(_websocket_server)
 
 	# Add them to our processor list
 	_command_processors.append(node_commands)
@@ -58,8 +70,10 @@ func _initialize_command_processors():
 	_command_processors.append(formatter_commands)
 
 	# Try to load optional command classes
-	var script_resource_commands = _try_load_optional_command("res://addons/godot_mcp/mcp_script_resource_commands.gd")
-	var enhanced_commands = _try_load_optional_command("res://addons/godot_mcp/mcp_enhanced_commands.gd")
+	var script_resource_commands = _try_load_optional_command(
+		"res://addons/godot_mcp/mcp_script_resource_commands.gd")
+	var enhanced_commands = _try_load_optional_command(
+		"res://addons/godot_mcp/mcp_enhanced_commands.gd")
 	var asset_commands = _try_load_optional_command("res://addons/godot_mcp/mcp_asset_commands.gd")
 
 	# Add required processors as children for proper lifecycle management
@@ -98,7 +112,8 @@ func _try_load_optional_command(path: String) -> Node:
 		if script:
 			var command = Node.new()
 			command.set_script(script)
-			command._websocket_server = _websocket_server
+			if command.has_method("set_websocket_server"):
+				command.set_websocket_server(_websocket_server)
 			_command_processors.append(command)
 			add_child(command)
 			return command
@@ -130,8 +145,13 @@ func _handle_command(client_id: int, command: Dictionary) -> void:
 	if command_type in enhanced_commands:
 		# Try to find enhanced commands processor first
 		for processor in _command_processors:
-			if processor.get_script() and processor.get_script().resource_path.ends_with("mcp_enhanced_commands.gd"):
-				var handled = await _call_processor(processor, client_id, command_type, params, command_id)
+			if (
+				processor.get_script()
+				and processor.get_script().resource_path.ends_with(
+					"mcp_enhanced_commands.gd")
+			):
+				var handled = await _call_processor(
+					processor, client_id, command_type, params, command_id)
 				if handled:
 					print("Command %s handled by Enhanced Commands processor" % command_type)
 					return
@@ -172,7 +192,14 @@ func _processor_requires_await(processor: Node) -> bool:
 	return false
 
 
-func _call_processor(processor: Node, client_id: int, command_type: String, params: Dictionary, command_id: String) -> bool:
+func _call_processor(
+	processor: Node,
+	client_id: int,
+	command_type: String,
+	params: Dictionary,
+	command_id: String,
+) -> bool:
 	if _processor_requires_await(processor):
 		return await processor.process_command(client_id, command_type, params, command_id)
-	return processor.process_command(client_id, command_type, params, command_id)
+	return processor.process_command(
+		client_id, command_type, params, command_id)

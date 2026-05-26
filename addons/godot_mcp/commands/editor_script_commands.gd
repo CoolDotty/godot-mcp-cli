@@ -9,7 +9,9 @@ const MAX_LOG_TAIL_LINES := 20
 var _pending_executions := { }
 
 
-func process_command(client_id: int, command_type: String, params: Dictionary, command_id: String) -> bool:
+func process_command(
+	client_id: int, command_type: String, params: Dictionary, command_id: String
+) -> bool:
 	match command_type:
 		"execute_editor_script":
 			_execute_editor_script(client_id, params, command_id)
@@ -24,12 +26,18 @@ func _fix_api_compatibility(code: String) -> String:
 	# Handle Directory API (replaced with DirAccess in Godot 4.x)
 	if "Directory.new()" in modified_code:
 		modified_code = modified_code.replace("Directory.new()", "DirAccess.open('res://')")
-		modified_code = modified_code.replace("dir.list_dir_begin(true, true)", "dir.list_dir_begin()")
+		modified_code = modified_code.replace(
+			"dir.list_dir_begin(true, true)", "dir.list_dir_begin()"
+		)
 
 	# Handle File API (replaced with FileAccess in Godot 4.x)
 	if "File.new()" in modified_code:
-		modified_code = modified_code.replace("File.new()", "FileAccess.open('res://', FileAccess.READ)")
-		modified_code = modified_code.replace("file.open(", "file = FileAccess.open(")
+		modified_code = modified_code.replace(
+			"File.new()", "FileAccess.open('res://', FileAccess.READ)"
+		)
+		modified_code = modified_code.replace(
+			"file.open(", "file = FileAccess.open("
+		)
 
 	return modified_code
 
@@ -69,8 +77,8 @@ signal execution_completed
 
 # Variable to store the result
 var result = null
-var _output_array = []
-var _error_message = ""
+var output_array = []
+var error_message = ""
 var _parent
 
 # Custom print function that stores output in the array
@@ -85,7 +93,7 @@ func custom_print(values):
 	else:
 		output_str = str(values)
 		
-	_output_array.append(output_str)
+	output_array.append(output_str)
 	print(output_str)  # Still print to the console for debugging
 
 func run():
@@ -98,7 +106,7 @@ func run():
 	
 	# If there was an error, store it
 	if err != OK:
-		_error_message = "Failed to execute script with error: " + str(err)
+		error_message = "Failed to execute script with error: " + str(err)
 	
 	# Signal that execution is complete
 	execution_completed.emit()
@@ -130,7 +138,7 @@ func _execute_code():
 		if space_count > 0:
 			# Create tabs based on space count (e.g., 4 spaces = 1 tab)
 			var tabs = ""
-			for _i in range(space_count / 4): # Integer division
+			for i in range(space_count / 4):  # Integer division
 				tabs += "\t"
 			processed_line = tabs + line.substr(space_count)
 
@@ -158,7 +166,10 @@ func _execute_code():
 	script_node.set_script(script)
 
 	# Connect to the execution_completed signal
-	script_node.connect("execution_completed", _on_script_execution_completed.bind(script_node, client_id, command_id))
+	script_node.connect(
+		"execution_completed",
+		_on_script_execution_completed.bind(script_node, client_id, command_id)
+	)
 
 	var execution_log_snapshot = _capture_log_snapshot()
 	_track_pending_execution(script_node, client_id, command_id, execution_log_snapshot)
@@ -173,8 +184,8 @@ func _on_script_execution_completed(script_node: Node, client_id: int, command_i
 
 	# Collect results safely by checking if properties exist
 	var execution_result = script_node.get("result")
-	var output = script_node._output_array
-	var error_message = script_node._error_message
+	var output = script_node.output_array
+	var error_message = script_node.error_message
 
 	# Clean up
 	remove_child(script_node)
@@ -329,13 +340,18 @@ func _extract_log_tail(snapshot: Dictionary) -> Array:
 	return lines
 
 
-func _track_pending_execution(script_node: Node, client_id: int, command_id: String, log_snapshot: Dictionary) -> void:
+func _track_pending_execution(
+	script_node: Node, client_id: int, command_id: String, log_snapshot: Dictionary
+) -> void:
 	var execution_id = script_node.get_instance_id()
 	var timer := Timer.new()
 	timer.one_shot = true
 	timer.wait_time = EXECUTION_TIMEOUT_SECONDS
 	add_child(timer)
-	timer.connect("timeout", Callable(self, "_on_execution_timeout").bind(execution_id, client_id, command_id))
+	timer.connect(
+		"timeout",
+		Callable(self, "_on_execution_timeout").bind(execution_id, client_id, command_id)
+	)
 	timer.start()
 	_pending_executions[execution_id] = {
 		"client_id": client_id,

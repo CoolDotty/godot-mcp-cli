@@ -9,8 +9,21 @@ signal command_completed(client_id, command_type, result, command_id)
 var _websocket_server = null
 
 
+func get_websocket_server():
+	return _websocket_server
+
+
+func set_websocket_server(server) -> void:
+	_websocket_server = server
+
+
 # Must be implemented by subclasses
-func process_command(client_id: int, command_type: String, params: Dictionary, command_id: String) -> bool:
+func process_command(
+	_client_id: int,
+	_command_type: String,
+	_params: Dictionary,
+	_command_id: String,
+) -> bool:
 	push_error("BaseCommandProcessor.process_command called directly")
 	return false
 
@@ -201,8 +214,7 @@ func _parse_property_value(value):
 			if not expression.has_execute_failed():
 				print("Successfully parsed %s as %s" % [value, result])
 				return result
-			else:
-				print("Failed to execute expression for: %s" % value)
+			print("Failed to execute expression for: %s" % value)
 		else:
 			print("Failed to parse expression: %s (Error: %d)" % [value, error])
 

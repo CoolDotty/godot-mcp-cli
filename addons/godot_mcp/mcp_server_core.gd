@@ -19,18 +19,18 @@ class ResponseBroker:
 	var _completed: Dictionary = { } # commandId → response dict (after retrieval)
 
 
-	func send_response(client_id: int, response: Dictionary) -> int:
+	func send_response(_client_id: int, response: Dictionary) -> int:
 		var cmd_id: String = response.get("commandId", "")
 		if cmd_id:
 			_pending[cmd_id] = response.duplicate(true)
 		return OK
 
 
-	func send_event(client_id: int, event: Dictionary) -> int:
+	func send_event(_client_id: int, _event: Dictionary) -> int:
 		return OK
 
 
-	func broadcast_event(event: Dictionary) -> void:
+	func broadcast_event(_event: Dictionary) -> void:
 		pass
 
 
@@ -124,7 +124,7 @@ func set_command_handler(handler) -> void:
 	# Swap the websocket_server reference to our broker so command
 	# processor responses come through us.
 	if _command_handler:
-		_command_handler._websocket_server = _response_broker
+		_command_handler.set_websocket_server(_response_broker)
 		_set_broker_on_processors(_command_handler)
 
 
@@ -276,7 +276,7 @@ func _handle_initialize(params: Dictionary, req_id: Variant) -> Dictionary:
 	)
 
 
-func _handle_initialized_notification(params: Dictionary) -> void:
+func _handle_initialized_notification(_params: Dictionary) -> void:
 	# Client confirms initialization is complete
 	is_initialized = true
 
@@ -284,7 +284,7 @@ func _handle_initialized_notification(params: Dictionary) -> void:
 # ---------------------------------------------------------------------------
 # Tools
 # ---------------------------------------------------------------------------
-func _handle_tools_list(params: Dictionary, req_id: Variant) -> Dictionary:
+func _handle_tools_list(_params: Dictionary, req_id: Variant) -> Dictionary:
 	var tools_list: Array[Dictionary] = []
 	for tool in _tools:
 		tools_list.append(
@@ -334,7 +334,7 @@ func _handle_tools_call(params: Dictionary, req_id: Variant) -> Variant:
 
 	# Call the command handler
 	var handled: bool = false
-	for processor in _command_handler._command_processors:
+	for processor in _command_handler.get_command_processors():
 		if _call_processor_blocking(processor, command_id, command):
 			handled = true
 			break
@@ -367,18 +367,18 @@ func _handle_tools_call(params: Dictionary, req_id: Variant) -> Variant:
 				],
 			},
 		)
-	else:
-		return MCPTypes.make_error_response(
-			req_id,
-			MCPTypes.ErrorCode.TOOL_EXECUTION_ERROR,
-			response.get("message", "Tool execution failed"),
-		)
+
+	return MCPTypes.make_error_response(
+		req_id,
+		MCPTypes.ErrorCode.TOOL_EXECUTION_ERROR,
+		response.get("message", "Tool execution failed"),
+	)
 
 
 # ---------------------------------------------------------------------------
 # Resources
 # ---------------------------------------------------------------------------
-func _handle_resources_list(params: Dictionary, req_id: Variant) -> Dictionary:
+func _handle_resources_list(_params: Dictionary, req_id: Variant) -> Dictionary:
 	var resources_list: Array[Dictionary] = []
 	for res in _resources:
 		resources_list.append(res)
@@ -391,7 +391,7 @@ func _handle_resources_list(params: Dictionary, req_id: Variant) -> Dictionary:
 	)
 
 
-func _handle_resources_read(params: Dictionary, req_id: Variant) -> Variant:
+func _handle_resources_read(_params: Dictionary, req_id: Variant) -> Variant:
 	var uri: String = params.get("uri", "")
 
 	# For now, resources are read-only informational
@@ -1474,20 +1474,21 @@ func _register_builtin_tools() -> void:
 ## Call a processor with the broker set, returning true if handled.
 ## Processors return `bool` immediately — actual responses arrive later
 ## through `_send_success`/`_send_error` which write to the ResponseBroker.
-func _call_processor_blocking(processor, command_id: String, command: Dictionary) -> bool:
+func _call_processor_blocking(processor, _command_id: String, command: Dictionary) -> bool:
 	if not processor or not processor.has_method("process_command"):
 		return false
 
 	# Temporarily set broker on processor
 	var old_server = null
-	if "_websocket_server" in processor:
-		old_server = processor._websocket_server
-		processor._websocket_server = _response_broker
+	if processor.has_method("get_websocket_server"):
+		old_server = processor.get_websocket_server()
+		processor.set_websocket_server(_response_broker)
 
 	var handled := false
 	if processor.has_method("process_command"):
 		# Call synchronously — processor returns bool immediately
-		# The actual response is written to the broker via _send_success/_send_error
+		# The actual response is written to the broker via
+		# _send_success/_send_error
 		handled = processor.process_command(
 			0,
 			command.get("type"),
@@ -1497,14 +1498,14 @@ func _call_processor_blocking(processor, command_id: String, command: Dictionary
 
 	# Restore old server reference
 	if old_server != null:
-		processor._websocket_server = old_server
+		processor.set_websocket_server(old_server)
 
 	return handled
 
 
 func _set_broker_on_processors(handler) -> void:
-	if not handler or not "_command_processors" in handler:
+	if not handler or not handler.has_method("get_command_processors"):
 		return
-	for proc in handler._command_processors:
-		if proc and "_websocket_server" in proc:
-			proc._websocket_server = _response_broker
+	for proc in handler.get_command_processors():
+		if proc and proc.has_method("set_websocket_server"):
+			proc.set_websocket_server(_response_broker)

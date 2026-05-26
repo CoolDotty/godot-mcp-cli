@@ -51,7 +51,9 @@ var _access_control_allowed_headers = "content-type"
 # Compile the required regex
 func _init(_logging: bool = false):
 	self._logging = _logging
-	_method_regex.compile("^(?<method>GET|POST|HEAD|PUT|PATCH|DELETE|OPTIONS) (?<path>[^ ]+) HTTP/1.1$")
+	_method_regex.compile(
+		"^(?<method>GET|POST|HEAD|PUT|PATCH|DELETE|OPTIONS) (?<path>[^ ]+) HTTP/1.1$"
+	)
 	_header_regex.compile("^(?<key>[\\w-]+): (?<value>(.*))$")
 
 
@@ -74,7 +76,9 @@ func _ready() -> void:
 # - message: The message to be printed (only in debug mode)
 func _print_debug(message: String) -> void:
 	var time = Time.get_datetime_dict_from_system()
-	var time_return = "%02d-%02d-%02d %02d:%02d:%02d" % [time.year, time.month, time.day, time.hour, time.minute, time.second]
+	var time_return = "%02d-%02d-%02d %02d:%02d:%02d" % [
+		time.year, time.month, time.day, time.hour, time.minute, time.second
+	]
 	print("[SERVER] ", time_return, " >> ", message)
 
 
@@ -83,7 +87,8 @@ func _print_debug(message: String) -> void:
 ## [br][param path] - The path the router will handle.
 ## Supports a regular expression and the group matches will be available in HttpRequest.query_match.
 ## [br][param router] - The router which will handle the request
-#func register_router(path: String, router: HttpRouter, condition: Callable = func(request: HttpRequest): return true):
+#func register_router(path: String, router: HttpRouter,
+#		condition: Callable = func(request: HttpRequest): return true):
 func register_router(router: HttpRouter) -> void:
 	var path_regex = RegEx.new()
 	var params: Array[String] = []
@@ -123,6 +128,11 @@ func start():
 			stop()
 		_:
 			_print_debug("HTTP Server listening on http://%s:%s" % [self.bind_address, self.port])
+
+
+## Return whether the server is currently listening for connections
+func is_listening() -> bool:
+	return _server and _server.is_listening()
 
 
 ## Stop the server and disconnect all clients
@@ -200,10 +210,10 @@ func _handle_request(client: StreamPeer, request_string: String):
 func _perform_current_request(client: StreamPeer, request: HttpRequest):
 	# Run synchronously on the main thread — Godot scene tree APIs
 	# (get_node, get_children, etc.) are NOT thread-safe.
-	__perform_current_request(client, request)
+	_perform_current_request_impl(client, request)
 
 
-func __perform_current_request(client: StreamPeer, request: HttpRequest):
+func _perform_current_request_impl(client: StreamPeer, request: HttpRequest):
 	_print_debug("HTTP Request: " + str(request))
 	var found = false
 	var is_allowed_origin = false
@@ -305,7 +315,11 @@ func _path_to_regexp(path: String, should_match_subfolders: bool = false) -> Arr
 ## [br][param allowed_origins] - The origins that are allowed to be accessed from this server
 ## [br][param access_control_allowed_methods] - The methods that are allowed to be used
 ## [br][param access_control_allowed_headers] - The headers that are allowed to be sent
-func enable_cors(allowed_origins: PackedStringArray, access_control_allowed_methods: String = "POST, GET, OPTIONS", access_control_allowed_headers: String = "content-type"):
+func enable_cors(
+	allowed_origins: PackedStringArray,
+	access_control_allowed_methods: String = "POST, GET, OPTIONS",
+	access_control_allowed_headers: String = "content-type"
+):
 	_allowed_origins = allowed_origins
 	_access_control_allowed_methods = access_control_allowed_methods
 	_access_control_allowed_headers = access_control_allowed_headers

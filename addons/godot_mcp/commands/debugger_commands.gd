@@ -53,15 +53,26 @@ func _normalize_script_path(script_path: String) -> String:
 	return 'res://' + script_path
 
 
-func _forward_bridge_result(client_id: int, command_id: String, result: Variant, failure_message: String) -> void:
+func _forward_bridge_result(
+		client_id: int,
+		command_id: String,
+		result: Variant,
+		failure_msg: String,
+) -> void:
 	if result is Dictionary and not result.get('success', true):
-		_send_error(client_id, result.get('message', failure_message), command_id)
+		_send_error(client_id, result.get('message', failure_msg), command_id)
 		return
 
 	_send_success(client_id, result, command_id)
 
 
-func _call_breakpoint_operation(client_id: int, params: Dictionary, command_id: String, method_name: String, failure_message: String) -> void:
+func _call_breakpoint_operation(
+		client_id: int,
+		params: Dictionary,
+		command_id: String,
+		method_name: String,
+		failure_msg: String,
+) -> void:
 	if not _ensure_bridge(client_id, command_id):
 		return
 
@@ -79,36 +90,73 @@ func _call_breakpoint_operation(client_id: int, params: Dictionary, command_id: 
 	script_path = _normalize_script_path(script_path)
 
 	var result = _debugger_bridge.call(method_name, script_path, line)
-	_forward_bridge_result(client_id, command_id, result, failure_message)
+	_forward_bridge_result(client_id, command_id, result, failure_msg)
 
 
-func _call_bridge_no_args(client_id: int, command_id: String, method_name: String, failure_message: String) -> void:
+func _call_bridge_no_args(
+		client_id: int,
+		command_id: String,
+		method_name: String,
+		failure_msg: String,
+) -> void:
 	if not _ensure_bridge(client_id, command_id):
 		return
 
 	var result = _debugger_bridge.call(method_name)
-	_forward_bridge_result(client_id, command_id, result, failure_message)
+	_forward_bridge_result(client_id, command_id, result, failure_msg)
 
 
-func process_command(client_id: int, command_type: String, params: Dictionary, command_id: String) -> bool:
+func process_command(
+		client_id: int,
+		command_type: String,
+		params: Dictionary,
+		command_id: String,
+) -> bool:
 	match command_type:
 		'debugger_set_breakpoint':
-			_call_breakpoint_operation(client_id, params, command_id, 'set_breakpoint', 'Failed to set breakpoint')
+			_call_breakpoint_operation(
+				client_id,
+				params,
+				command_id,
+				'set_breakpoint',
+				'Failed to set breakpoint',
+			)
 			return true
 		'debugger_remove_breakpoint':
-			_call_breakpoint_operation(client_id, params, command_id, 'remove_breakpoint', 'Failed to remove breakpoint')
+			_call_breakpoint_operation(
+				client_id,
+				params,
+				command_id,
+				'remove_breakpoint',
+				'Failed to remove breakpoint',
+			)
 			return true
 		'debugger_get_breakpoints':
 			_get_breakpoints(client_id, params, command_id)
 			return true
 		'debugger_clear_all_breakpoints':
-			_call_bridge_no_args(client_id, command_id, 'clear_all_breakpoints', 'Failed to clear all breakpoints')
+			_call_bridge_no_args(
+				client_id,
+				command_id,
+				'clear_all_breakpoints',
+				'Failed to clear all breakpoints',
+			)
 			return true
 		'debugger_pause_execution':
-			_call_bridge_no_args(client_id, command_id, 'pause_execution', 'Failed to pause execution')
+			_call_bridge_no_args(
+				client_id,
+				command_id,
+				'pause_execution',
+				'Failed to pause execution',
+			)
 			return true
 		'debugger_resume_execution':
-			_call_bridge_no_args(client_id, command_id, 'resume_execution', 'Failed to resume execution')
+			_call_bridge_no_args(
+				client_id,
+				command_id,
+				'resume_execution',
+				'Failed to resume execution',
+			)
 			return true
 		'debugger_step_over':
 			_call_bridge_no_args(client_id, command_id, 'step_over', 'Failed to step over')
@@ -131,7 +179,7 @@ func process_command(client_id: int, command_type: String, params: Dictionary, c
 	return false
 
 
-func _get_breakpoints(client_id: int, params: Dictionary, command_id: String) -> void:
+func _get_breakpoints(client_id: int, _params: Dictionary, command_id: String) -> void:
 	if not _ensure_bridge(client_id, command_id):
 		return
 
@@ -167,14 +215,19 @@ func _get_call_stack(client_id: int, params: Dictionary, command_id: String):
 
 	var result = await _debugger_bridge.get_call_stack(session_id)
 	if typeof(result) == TYPE_DICTIONARY and result.has("error"):
-		var message := String(result.get("message", result.get("error", "unknown_call_stack_error")))
+		var message := String(
+			result.get(
+				"message",
+				result.get("error", "unknown_call_stack_error"),
+			),
+		)
 		_send_error(client_id, "Failed to capture call stack: %s" % message, command_id)
 		return
 
 	_send_success(client_id, result, command_id)
 
 
-func _get_current_state(client_id: int, params: Dictionary, command_id: String) -> void:
+func _get_current_state(client_id: int, _params: Dictionary, command_id: String) -> void:
 	if not _ensure_bridge(client_id, command_id):
 		return
 
@@ -182,13 +235,13 @@ func _get_current_state(client_id: int, params: Dictionary, command_id: String) 
 	_send_success(client_id, result, command_id)
 
 
-func _enable_debugger_events(client_id: int, params: Dictionary, command_id: String) -> void:
+func _enable_debugger_events(client_id: int, _params: Dictionary, command_id: String) -> void:
 	if not _ensure_bridge(client_id, command_id):
 		return
 
 	_debugger_bridge.set_client_id(client_id)
 
-	if not _debugger_bridge._websocket_server:
+	if not _debugger_bridge.get_websocket_server():
 		_debugger_bridge.set_websocket_server(_websocket_server)
 
 	_send_success(
@@ -201,11 +254,11 @@ func _enable_debugger_events(client_id: int, params: Dictionary, command_id: Str
 	)
 
 
-func _disable_debugger_events(client_id: int, params: Dictionary, command_id: String) -> void:
+func _disable_debugger_events(client_id: int, _params: Dictionary, command_id: String) -> void:
 	if not _ensure_bridge(client_id, command_id):
 		return
 
-	if _debugger_bridge._current_client_id == client_id:
+	if _debugger_bridge.get_current_client_id() == client_id:
 		_debugger_bridge.set_client_id(-1)
 
 	_send_success(
@@ -219,7 +272,12 @@ func _disable_debugger_events(client_id: int, params: Dictionary, command_id: St
 
 
 # Signal handlers to provide editor-side visibility into debugger activity
-func _on_breakpoint_hit(session_id: int, script_path: String, line: int, stack_info: Dictionary) -> void:
+func _on_breakpoint_hit(
+		session_id: int,
+		script_path: String,
+		line: int,
+		_stack_info: Dictionary,
+) -> void:
 	print('Breakpoint hit in session %s at %s:%d' % [session_id, script_path, line])
 
 
@@ -231,18 +289,23 @@ func _on_execution_resumed(session_id: int) -> void:
 	print('Execution resumed in session %s' % session_id)
 
 
-func _on_stack_frame_changed(session_id: int, frame_info: Dictionary) -> void:
+func _on_stack_frame_changed(session_id: int, _frame_info: Dictionary) -> void:
 	print('Stack frame changed in session %s' % session_id)
 
 
-func _on_breakpoint_set(session_id: int, script_path: String, line: int, success: bool) -> void:
+func _on_breakpoint_set(_session_id: int, script_path: String, line: int, success: bool) -> void:
 	if success:
 		print('Breakpoint set successfully at %s:%d' % [script_path, line])
 	else:
 		print('Failed to set breakpoint at %s:%d' % [script_path, line])
 
 
-func _on_breakpoint_removed(session_id: int, script_path: String, line: int, success: bool) -> void:
+func _on_breakpoint_removed(
+		_session_id: int,
+		script_path: String,
+		line: int,
+		success: bool,
+) -> void:
 	if success:
 		print('Breakpoint removed successfully at %s:%d' % [script_path, line])
 	else:

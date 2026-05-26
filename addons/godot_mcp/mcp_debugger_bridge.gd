@@ -41,6 +41,14 @@ func set_client_id(client_id: int):
 	_current_client_id = client_id
 
 
+func get_websocket_server():
+	return _websocket_server
+
+
+func get_current_client_id() -> int:
+	return _current_client_id
+
+
 func _normalize_capture_name(value: String) -> String:
 	return value.to_lower()
 
@@ -403,7 +411,12 @@ func _active_session_objects() -> Array:
 	return sessions
 
 
-func _add_breakpoint_source(target: Dictionary, sources: Dictionary, source_name: String, breakpoint_map: Dictionary) -> void:
+func _add_breakpoint_source(
+		target: Dictionary,
+		sources: Dictionary,
+		source_name: String,
+		breakpoint_map: Dictionary,
+) -> void:
 	if breakpoint_map.is_empty():
 		return
 
@@ -460,12 +473,15 @@ func remove_breakpoint(script_path: String, line: int) -> Dictionary:
 	return _with_primary_session(
 		"No active debugger session",
 		func(session_id: int, session):
-			if _session_breakpoints.has(session_id) and _session_breakpoints[session_id].has(script_path):
+			if _session_breakpoints.has(session_id) and \
+			_session_breakpoints[session_id].has(script_path):
 				_session_breakpoints[session_id][script_path].erase(line)
 				if _session_breakpoints[session_id][script_path].is_empty():
 					_session_breakpoints[session_id].erase(script_path)
-
-	var success = _remove_native_breakpoint(session, script_path, line)
+		var success = _remove_native_breakpoint(session,
+		script_path,
+		line,
+	)
 	if success:
 		breakpoint_removed.emit(session_id, script_path, line, true)
 		_trace("Breakpoint removed successfully: %s:%d" % [script_path, line])
@@ -476,16 +492,41 @@ func remove_breakpoint(script_path: String, line: int) -> Dictionary:
 		"success": false,
 		"message": "Failed to remove breakpoint in Godot's debugger",
 	}
+
+
+
+
+
 	)
 
 func get_breakpoints() -> Dictionary:
 	var aggregated: Dictionary = { }
 	var sources: Dictionary = { }
 
-	_add_breakpoint_source(aggregated, sources, "mcp_tracked", _breakpoints.duplicate(true))
-	_add_breakpoint_source(aggregated, sources, "session_tracked", _collect_tracked_session_breakpoints())
-	_add_breakpoint_source(aggregated, sources, "session_reported", _collect_active_session_breakpoints())
-	_add_breakpoint_source(aggregated, sources, "editor", _collect_editor_breakpoints())
+	_add_breakpoint_source(
+		aggregated,
+		sources,
+		"mcp_tracked",
+		_breakpoints.duplicate(true),
+	)
+	_add_breakpoint_source(
+		aggregated,
+		sources,
+		"session_tracked",
+		_collect_tracked_session_breakpoints(),
+	)
+	_add_breakpoint_source(
+		aggregated,
+		sources,
+		"session_reported",
+		_collect_active_session_breakpoints(),
+	)
+	_add_breakpoint_source(
+		aggregated,
+		sources,
+		"editor",
+		_collect_editor_breakpoints(),
+	)
 
 	return {
 		"breakpoints": aggregated,
@@ -516,7 +557,10 @@ func clear_all_breakpoints() -> Dictionary:
 					var success = _remove_native_breakpoint(session, script_path, line)
 					if success:
 						cleared_count += 1
-						_trace("Cleared breakpoint %s:%d from session %s" % [script_path, line, session_id])
+						_trace(
+							"Cleared breakpoint %s:%d from session %s" %
+							[script_path, line, session_id],
+						)
 
 		# Also try to clear any remaining breakpoints using direct methods
 		_clear_all_native_breakpoints(session)
@@ -947,7 +991,8 @@ func _collect_active_session_breakpoints() -> Dictionary:
 
 		if session.has_method("get_breakpoints"):
 			session_breakpoints = session.get_breakpoints()
-		elif "breakpoints" in session and session.breakpoints and session.breakpoints.has_method("get_breakpoints"):
+		elif ("breakpoints" in session and session.breakpoints
+			and session.breakpoints.has_method("get_breakpoints") ):
 			session_breakpoints = session.breakpoints.get_breakpoints()
 
 		if session_breakpoints != null:
@@ -1220,13 +1265,18 @@ func _set_native_breakpoint(session: EditorDebuggerSession, script_path: String,
 	if session and session.has_method("breakpoints"):
 		var breakpoints = session.breakpoints
 		if breakpoints.has_method("set_line_breakpoint"):
-			# This might be the correct method for setting breakpoints
 			breakpoints.set_line_breakpoint(script_path, line)
-			_trace("Set breakpoint using session.breakpoints.set_line_breakpoint: %s:%d" % [script_path, line])
+			_trace(
+				"Set breakpoint using session.breakpoints"
+				+ ".set_line_breakpoint: %s:%d" % [script_path, line],
+			)
 			return true
-		elif breakpoints.has_method("add_breakpoint"):
+		if breakpoints.has_method("add_breakpoint"):
 			breakpoints.add_breakpoint(script_path, line)
-			_trace("Set breakpoint using session.breakpoints.add_breakpoint: %s:%d" % [script_path, line])
+			_trace(
+				"Set breakpoint using session.breakpoints"
+				+ ".add_breakpoint: %s:%d" % [script_path, line],
+			)
 			return true
 
 	# Method 2: Try direct session methods
@@ -1241,7 +1291,10 @@ func _set_native_breakpoint(session: EditorDebuggerSession, script_path: String,
 		for attempt in attempts:
 			# Use callv to safely call with parameter array
 			var result = session.callv("set_breakpoint", attempt)
-			_trace("Set breakpoint using session.set_breakpoint with params %s: %s:%d" % [attempt, script_path, line])
+			_trace(
+				"Set breakpoint using session.set_breakpoint"
+				+ " with params %s: %s:%d" % [attempt, script_path, line],
+			)
 			return true
 
 	# Method 3: Try standard Godot debugger protocol
@@ -1252,12 +1305,18 @@ func _set_native_breakpoint(session: EditorDebuggerSession, script_path: String,
 			["breakpoint:insert", [{ "script_path": script_path, "line": line, "enabled": true }]],
 			["breakpoint:insert", [{ "source": script_path, "line": line, "enabled": true }]],
 			["breakpoint:set", [{ "script": script_path, "line": line, "enabled": true }]],
-			["debugger:breakpoint", [{ "script_path": script_path, "line": line, "enabled": true }]],
+			[
+				"debugger:breakpoint",
+				[{ "script_path": script_path, "line": line, "enabled": true }],
+			],
 		]
 
 		for attempt in attempts:
 			session.send_message(attempt[0], attempt[1])
-			_trace("Attempted breakpoint set with format %s: %s:%d" % [attempt[0], script_path, line])
+		_trace(
+			"Attempted breakpoint set with format %s: %s:%d" %
+			[attempt[0], script_path, line],
+		)
 
 		return true
 
@@ -1295,7 +1354,11 @@ func _clear_all_native_breakpoints(session: EditorDebuggerSession) -> void:
 			_trace("Sent clear breakpoints message: %s" % attempt[0])
 
 
-func _remove_native_breakpoint(session: EditorDebuggerSession, script_path: String, line: int) -> bool:
+func _remove_native_breakpoint(
+		session: EditorDebuggerSession,
+		script_path: String,
+		line: int,
+) -> bool:
 	# Try different approaches to remove breakpoints in Godot's debugger system
 	_trace("Attempting to remove breakpoint at %s:%d" % [script_path, line])
 
@@ -1323,7 +1386,10 @@ func _remove_native_breakpoint(session: EditorDebuggerSession, script_path: Stri
 
 		for attempt in attempts:
 			var result = session.callv("set_breakpoint", attempt)
-			_trace("Attempted removal using set_breakpoint with params %s: %s:%d" % [attempt, script_path, line])
+			_trace(
+				"Attempted removal using set_breakpoint"
+				+ " with params %s: %s:%d" % [attempt, script_path, line],
+			)
 
 	# Method 3: Try using the breakpoints object if it exists
 	if session and session.get("breakpoints"):
@@ -1351,7 +1417,10 @@ func _remove_native_breakpoint(session: EditorDebuggerSession, script_path: Stri
 						if found_and_removed:
 							# Update the breakpoints array
 							current_breakpoints[script_path] = new_bps
-							_trace("Removed line %d from breakpoints for %s, new list: %s" % [line, script_path, new_bps])
+							_trace(
+								"Removed line %d from breakpoints"
+								+ " for %s, new list: %s" % [line, script_path, new_bps],
+							)
 
 							# Try to clear and re-set all breakpoints
 							if breakpoints.has_method("clear"):

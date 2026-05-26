@@ -28,9 +28,9 @@ func _ready():
 
 	# Setup server signals once it's available
 	await get_tree().process_frame
-	if http_server and http_server._server:
+	if http_server and http_server.is_listening():
 		# The HttpServer uses _server (TCPServer) internally
-		_log_message("Server configured on port %d" % http_server.port)
+		log_message("Server configured on port %d" % http_server.port)
 
 
 func _update_ui():
@@ -42,7 +42,7 @@ func _update_ui():
 		connection_count_label.text = "0"
 		return
 
-	var is_active = http_server._server and http_server._server.is_listening()
+	var is_active = http_server and http_server.is_listening()
 
 	status_label.text = "Server: " + ("Running" if is_active else "Stopped")
 	start_button.disabled = is_active
@@ -82,3 +82,13 @@ func _log_message(message: String):
 	log_text.text += "[" + timestamp + "] " + message + "\n"
 	# Auto-scroll to bottom
 	log_text.scroll_vertical = log_text.get_line_count()
+
+
+## Public wrapper for _update_ui
+func update_ui() -> void:
+	_update_ui()
+
+
+## Public wrapper for _log_message
+func log_message(message: String) -> void:
+	_log_message(message)
