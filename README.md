@@ -16,6 +16,7 @@ Includes an integrated HTTP server for the MCP transport layer.
 - **Dynamic Script Access**: Read scripts via resource URIs and metadata
 - **Script Editing Tools**: Create, edit, or template scripts directly through MCP commands
 - **Node Management**: Create, remove, list, and inspect nodes with automatic path normalization
+- **Node Warning Inspection**: Inspect current scene tree configuration warnings with `get_node_warnings`
 - **Scene Operations**: Create, delete, open, and save scenes; query project info and current scene state
 - **Asset Management**: List assets by type and enumerate project files
 - **Project Reload**: Restart editor, reload scenes, or rescan filesystem for external changes
