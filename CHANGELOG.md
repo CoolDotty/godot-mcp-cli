@@ -4,6 +4,16 @@ All notable changes to this project will be documented in this file.
 
 ## Unreleased
 
+### Added
+- `get_node_warnings` tool to inspect the current scene tree for node configuration warnings
+  (configuration warnings shown on nodes in the Scene tree dock)
+- `EditorUtils.collect_scene_tree_warning_entries()` utility for scanning the Scene Tree dock UI
+
+### Fixed
+- **HTTP server stays responsive when editor window loses focus**: Replaced `_process(delta)` polling
+  with a `Timer` node so TCP connection acceptance and request handling continues even when Godot
+  throttles the main loop for unfocused windows
+
 ## 1.0.9 - 2025-12-19
 
 ### Changed
