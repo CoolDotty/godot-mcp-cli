@@ -22,15 +22,15 @@ Godot Editor (port 9080)
   │    ├── Resource Registry     │        │
   │    └── ResponseBroker ───────┤        │
   │                              ▼        │
-  │  CommandHandler                      │
-  │    ├── NodeCommands                   │
-  │    ├── ScriptCommands                 │
-  │    ├── SceneCommands                  │
-  │    ├── ProjectCommands                │
-  │    ├── EditorCommands                 │
-  │    ├── DebuggerCommands               │
-  │    ├── InputCommands                  │
-  │    └── (Enhanced/Asset/ScriptRes)     │
+  │  Tool Providers (auto-loaded)         │
+  │    ├── create_node / delete_node      │
+  │    ├── get_script / edit_script       │
+  │    ├── open_scene / save_scene        │
+  │    ├── get_project_info               │
+  │    ├── execute_editor_script          │
+  │    ├── debugger_provider              │
+  │    ├── runtime_provider               │
+  │    └── input_provider                 │
   │                              │        │
   │                              ▼        │
   │  Godot Engine APIs                    │
@@ -43,57 +43,107 @@ Godot Editor (port 9080)
 
 ## Components
 
-### HTTP Server Layer
+### HTTP Server Layer (`http/`)
 
 | File | Purpose |
 |------|---------|
-| `http_server.gd` | TCP/HTTP server, request parsing, router dispatch |
-| `http_router.gd` | Base router class with method callables |
-| `http_request.gd` | Parsed HTTP request with body/headers/query |
-| `http_response.gd` | HTTP response builder (send, json, send_raw) |
-| `http_file_router.gd` | Static file serving router |
+| `http/http_server.gd` | TCP/HTTP server, request parsing, router dispatch |
+| `http/http_router.gd` | Base router class with method callables |
+| `http/http_request.gd` | Parsed HTTP request with body/headers/query |
+| `http/http_response.gd` | HTTP response builder (send, json, send_raw) |
+| `http/http_file_router.gd` | Static file serving router |
 
-Originally sourced from [bit-garden/godottpd](https://github.com/bit-garden/godottpd) and vendored directly into `addons/godot_mcp/`.
+Originally sourced from [bit-garden/godottpd](https://github.com/bit-garden/godottpd) and vendored into `addons/godot_mcp/http/`.
 
-### MCP Protocol (`addons/godot_mcp/`)
+### MCP Core (root)
 
 | File | Purpose |
 |------|---------|
-| `mcp_server.gd` | Main EditorPlugin, manages lifecycle |
-| `mcp_server_core.gd` | JSON-RPC 2.0 engine, tool registry, protocol handlers |
-| `mcp_router.gd` | Extends HttpRouter — routes `/mcp` (SSE + JSON-RPC) |
-| `mcp_sse.gd` | SSE streaming manager, keepalive, client tracking |
-| `mcp_types.gd` | Shared constants, error codes, helper factories |
-| `command_handler.gd` | Routes commands to processors |
-| `commands/*.gd` | Command processors by category |
-| `mcp_debugger_bridge.gd` | EditorDebuggerPlugin for breakpoints |
-| `mcp_runtime_debugger_bridge.gd` | Runtime scene inspection |
-| `mcp_input_handler.gd` | Input simulation autoload |
-| `runtime_debugger.gd` | Script injected into debugged projects |
-| `mcp_debug_output_publisher.gd` | Live debug output streaming |
-| `mcp_enhanced_commands.gd` | Scene structure, runtime inspection, debug output, stack traces, errors |
-| `mcp_asset_commands.gd` | Asset and project file listing |
-| `mcp_script_resource_commands.gd` | Script fetch/edit operations |
-| `ui/mcp_panel.*` | Dock panel UI |
+| `mcp_server.gd` | Main EditorPlugin, manages plugin lifecycle |
+| `mcp_server_core.gd` | JSON-RPC 2.0 engine, tool registry, dynamically loads tool providers |
+| `tool_definition.gd` | Shared tool definition resource type |
+
+### MCP Protocol (`mcp/`)
+
+| File | Purpose |
+|------|---------|
+| `mcp/mcp_router.gd` | Extends HttpRouter — routes `/mcp` (SSE + JSON-RPC) |
+| `mcp/mcp_sse.gd` | SSE streaming manager, keepalive, client tracking |
+| `mcp/mcp_types.gd` | Shared constants, error codes, helper factories |
+| `mcp/mcp_input_handler.gd` | Input simulation autoload (registered at plugin start) |
+
+### Debugger Integration (`debugger/`)
+
+| File | Purpose |
+|------|---------|
+| `debugger/mcp_debugger_bridge.gd` | EditorDebuggerPlugin for breakpoints and execution control |
+| `debugger/mcp_runtime_debugger_bridge.gd` | Runtime scene inspection bridge |
+| `debugger/mcp_debug_output_publisher.gd` | Live debug output streaming to SSE clients |
+| `debugger/runtime_debugger.gd` | Script injected into debugged projects for expression evaluation |
+
+### Tool Providers (`tool_providers/`)
+
+Each `.gd` file in `tool_providers/` registers one or more MCP tools. MCPServerCore scans this directory at startup and auto-loads all valid providers.
+
+| Provider | Tools Provided |
+|----------|---------------|
+| `tool_providers/create_node.gd` | create_node |
+| `tool_providers/delete_node.gd` | delete_node |
+| `tool_providers/update_node_property.gd` | update_node_property |
+| `tool_providers/update_node_transform.gd` | update_node_transform |
+| `tool_providers/list_nodes.gd` | list_nodes |
+| `tool_providers/get_node_properties.gd` | get_node_properties |
+| `tool_providers/get_node_warnings.gd` | get_node_warnings |
+| `tool_providers/get_selected_node.gd` | get_selected_node |
+| `tool_providers/get_current_scene.gd` | get_current_scene |
+| `tool_providers/get_scene_structure.gd` | get_scene_structure |
+| `tool_providers/get_editor_scene_structure.gd` | get_editor_scene_structure |
+| `tool_providers/create_scene.gd` | create_scene |
+| `tool_providers/delete_scene.gd` | delete_scene |
+| `tool_providers/open_scene.gd` | open_scene |
+| `tool_providers/save_scene.gd` | save_scene |
+| `tool_providers/reload_scene.gd` | reload_scene |
+| `tool_providers/reload_project.gd` | reload_project |
+| `tool_providers/run_current_scene.gd` | run_current_scene |
+| `tool_providers/run_project.gd` | run_project |
+| `tool_providers/run_specific_scene.gd` | run_specific_scene |
+| `tool_providers/stop_running_project.gd` | stop_running_project |
+| `tool_providers/create_script.gd` | create_script |
+| `tool_providers/get_script.gd` | get_script |
+| `tool_providers/get_script_metadata.gd` | get_script_metadata |
+| `tool_providers/edit_script.gd` | edit_script |
+| `tool_providers/get_current_script.gd` | get_current_script |
+| `tool_providers/create_resource.gd` | create_resource |
+| `tool_providers/get_project_info.gd` | get_project_info |
+| `tool_providers/get_project_settings.gd` | get_project_settings |
+| `tool_providers/get_project_structure.gd` | get_project_structure |
+| `tool_providers/list_assets_by_type.gd` | list_assets_by_type |
+| `tool_providers/list_project_files.gd` | list_project_files |
+| `tool_providers/list_project_resources.gd` | list_project_resources |
+| `tool_providers/rescan_filesystem.gd` | rescan_filesystem |
+| `tool_providers/get_editor_state.gd` | get_editor_state |
+| `tool_providers/get_editor_errors.gd` | get_editor_errors |
+| `tool_providers/clear_editor_errors.gd` | clear_editor_errors |
+| `tool_providers/get_debug_output.gd` | get_debug_output |
+| `tool_providers/clear_debug_output.gd` | clear_debug_output |
+| `tool_providers/subscribe_debug_output.gd` | subscribe_debug_output |
+| `tool_providers/unsubscribe_debug_output.gd` | unsubscribe_debug_output |
+| `tool_providers/get_stack_trace_panel.gd` | get_stack_trace_panel |
+| `tool_providers/get_stack_frames_panel.gd` | get_stack_frames_panel |
+| `tool_providers/debugger_provider.gd` | Debugger breakpoints and execution control |
+| `tool_providers/runtime_provider.gd` | Runtime scene inspection and expression evaluation |
+| `tool_providers/input_provider.gd` | Input simulation (actions, mouse, keyboard) |
+| `tool_providers/editor_script_provider.gd` | execute_editor_script |
+
+### UI & Utilities
+
+| File | Purpose |
+|------|---------|
+| `ui/mcp_panel.*` | Dock panel UI for server control and status |
 | `utils/editor_utils.gd` | Editor helper utilities |
 | `utils/node_utils.gd` | Node traversal helpers |
 | `utils/resource_utils.gd` | Resource loading helpers |
 | `utils/script_utils.gd` | Script path normalization |
-
-### Command Processors
-
-| Processor | Tools Provided |
-|-----------|---------------|
-| `node_commands.gd` | create_node, delete_node, update_node_property, etc. |
-| `scene_commands.gd` | save_scene, load_scene, get_scene_tree, etc. |
-| `script_commands.gd` | run_script, get_script, set_script, etc. |
-| `debugger_commands.gd` | Breakpoints, execution control, events |
-| `input_commands.gd` | Action simulation, mouse/keyboard, sequences |
-| `editor_commands.gd` | Editor state, script execution |
-| `project_commands.gd` | Project info, settings |
-| `mcp_enhanced_commands.gd` | Scene structure, runtime inspection, debug output, stack traces, editor errors, streaming |
-| `mcp_asset_commands.gd` | Asset listing by type, project file enumeration |
-| `mcp_script_resource_commands.gd` | Script fetch (`get_script`) and edit (`edit_script`) operations |
 
 ## Transport: HTTP + SSE
 
@@ -181,7 +231,7 @@ data: {"jsonrpc":"2.0","method":"notifications/debug/output","params":{...}}
 Input commands flow through the debugger message system:
 
 ```
-MCPServerCore → CommandHandler → MCPInputCommands
+MCPServerCore → InputProvider
        │
        ▼ (EngineDebugger.send_message)
 MCPInputHandler (runtime autoload)
