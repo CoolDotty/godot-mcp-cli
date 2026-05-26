@@ -5,7 +5,7 @@
 ##   - check_formatter            — Check if the formatter addon/binary is installed
 ##   - install_formatter_addon    — Download the addon (godot-addon.zip) from GitHub releases
 ##   - install_formatter_binary   — Download the platform binary from GitHub releases
-##   - format_gdscript            — Format a GDScript file using the installed binary
+##   - format_gdscript            — Format GDScript file(s) — supports glob patterns like * or **/*.gd
 ##
 ## Async operations use HTTPRequest + signals + a state tracker,
 ## since the MCP server core calls process_command synchronously.
@@ -37,7 +37,8 @@ enum AsyncOp {
 	DOWNLOAD_BINARY_ZIP,
 }
 
-var _async_state: Dictionary = {}  # key → { op, client_id, command_id, http, http_callback, timer, ... }
+var _async_state: Dictionary = { } # key → { op, client_id, command_id, http, http_callback, timer, ... }
+
 
 # ---------------------------------------------------------------------------
 # Platform helpers
@@ -89,6 +90,9 @@ func process_command(client_id: int, command_type: String, params: Dictionary, c
 		"format_gdscript":
 			_format_gdscript(client_id, params, command_id)
 			return true
+		"format_all_gdscript":
+			_format_all_gdscript(client_id, params, command_id)
+			return true
 	return false
 
 
@@ -108,19 +112,23 @@ func _check_formatter(client_id: int, params: Dictionary, command_id: String) ->
 	else:
 		status = "Neither the formatter addon nor binary are installed. Use install_formatter_addon to get started."
 
-	_send_success(client_id, {
-		"addon_installed": addon,
-		"binary_installed": binary,
-		"binary_path": _binary_path(),
-		"cache_directory": _cache_dir(),
-		"addon_path": GDQ_ADDON_PATH,
-		"status": status,
-	}, command_id)
-
+	_send_success(
+		client_id,
+		{
+			"addon_installed": addon,
+			"binary_installed": binary,
+			"binary_path": _binary_path(),
+			"cache_directory": _cache_dir(),
+			"addon_path": GDQ_ADDON_PATH,
+			"status": status,
+		},
+		command_id,
+	)
 
 # ---------------------------------------------------------------------------
 # Install helpers (shared between addon and binary)
 # ---------------------------------------------------------------------------
+
 
 ## Start the common flow: fetch latest release JSON → route via op to handler.
 func _start_install(client_id: int, command_id: String, op: AsyncOp, key_suffix: String) -> void:
@@ -246,11 +254,15 @@ func _on_release_info_received(http_result: int, response_code: int, _headers: P
 # ---------------------------------------------------------------------------
 func _install_formatter_addon(client_id: int, params: Dictionary, command_id: String) -> void:
 	if FileAccess.file_exists(GDQ_PLUGIN_CFG):
-		_send_success(client_id, {
-			"status": "already_installed",
-			"path": GDQ_ADDON_PATH,
-			"message": "GDQuest GDScript Formatter addon is already installed.",
-		}, command_id)
+		_send_success(
+			client_id,
+			{
+				"status": "already_installed",
+				"path": GDQ_ADDON_PATH,
+				"message": "GDQuest GDScript Formatter addon is already installed.",
+			},
+			command_id,
+		)
 		return
 
 	_start_install(client_id, command_id, AsyncOp.FETCH_RELEASE_INFO_ADDON, "addon")
@@ -268,9 +280,11 @@ func _on_addon_release_found(json: Dictionary, state: Dictionary, http: HTTPRequ
 
 	if download_url.is_empty():
 		_cleanup_async(_find_key_by_http(http))
-		return _send_error(state["client_id"],
+		return _send_error(
+			state["client_id"],
 			"No '%s' asset found in release %s" % [ADDON_ZIP_ASSET_NAME, tag],
-			state["command_id"])
+			state["command_id"],
+		)
 
 	# Reset timeout for the download phase (API call already completed)
 	_reset_timeout(_find_key_by_http(http), HTTP_TIMEOUT_SEC)
@@ -337,13 +351,17 @@ func _on_addon_zip_downloaded(http_result: int, response_code: int, _headers: Pa
 
 	EditorInterface.get_resource_filesystem().scan()
 
-	_send_success(client_id, {
-		"status": "installed",
-		"tag": tag,
-		"path": GDQ_ADDON_PATH,
-		"files": extracted,
-		"message": "Addon v%s installed. Enable it in Project → Project Settings → Plugins, then run install_formatter_binary." % [tag],
-	}, command_id)
+	_send_success(
+		client_id,
+		{
+			"status": "installed",
+			"tag": tag,
+			"path": GDQ_ADDON_PATH,
+			"files": extracted,
+			"message": "Addon v%s installed. Enable it in Project → Project Settings → Plugins, then run install_formatter_binary." % [tag],
+		},
+		command_id,
+	)
 
 
 # ---------------------------------------------------------------------------
@@ -371,9 +389,11 @@ func _on_binary_release_found(json: Dictionary, state: Dictionary, http: HTTPReq
 
 	if download_url.is_empty():
 		_cleanup_async(_find_key_by_http(http))
-		return _send_error(state["client_id"],
+		return _send_error(
+			state["client_id"],
 			"No binary for %s-%s (expected: %s)" % [platform["os"], platform["arch"], expected],
-			state["command_id"])
+			state["command_id"],
+		)
 
 	# Reset timeout for the download phase (API call already completed)
 	_reset_timeout(_find_key_by_http(http), HTTP_TIMEOUT_SEC)
@@ -449,25 +469,24 @@ func _on_binary_zip_downloaded(http_result: int, response_code: int, _headers: P
 
 	_cleanup_async(key)
 
-	_send_success(client_id, {
-		"status": "installed",
-		"binary_path": bin_path,
-		"tag": tag,
-		"platform": { "os": platform["os"], "arch": platform["arch"] },
-		"message": "GDScript Formatter v%s installed at: %s" % [tag, bin_path],
-	}, command_id)
+	_send_success(
+		client_id,
+		{
+			"status": "installed",
+			"binary_path": bin_path,
+			"tag": tag,
+			"platform": { "os": platform["os"], "arch": platform["arch"] },
+			"message": "GDScript Formatter v%s installed at: %s" % [tag, bin_path],
+		},
+		command_id,
+	)
 
 
 # ---------------------------------------------------------------------------
-# Tool: format_gdscript — synchronous, uses OS.execute
+# Tool: format_gdscript — supports glob patterns (e.g. *, **/*.gd)
 # ---------------------------------------------------------------------------
 func _format_gdscript(client_id: int, params: Dictionary, command_id: String) -> void:
 	var script_path: String = params.get("script_path", "")
-	var use_spaces: bool = params.get("use_spaces", false)
-	var indent_size: int = params.get("indent_size", 4)
-	var reorder_code: bool = params.get("reorder_code", false)
-	var safe_mode: bool = params.get("safe_mode", true)
-	var write_back: bool = params.get("write_back", true)
 
 	if script_path.is_empty():
 		return _send_error(client_id, "Required: script_path", command_id)
@@ -475,27 +494,98 @@ func _format_gdscript(client_id: int, params: Dictionary, command_id: String) ->
 	if not script_path.begins_with("res://"):
 		script_path = "res://" + script_path
 
+	# Detect glob patterns
+	if script_path.contains("*"):
+		var matches := _resolve_glob(script_path)
+		if matches.is_empty():
+			return _send_error(client_id, "No .gd files matched pattern: %s" % script_path, command_id)
+
+		var results: Array[Dictionary] = []
+		var formatted_count := 0
+		var unchanged_count := 0
+		var error_count := 0
+
+		for path in matches:
+			var result := _format_single(path, params)
+			if result.has("error"):
+				error_count += 1
+			elif result.get("changed", false):
+				formatted_count += 1
+			else:
+				unchanged_count += 1
+			results.append(result)
+
+		return _send_success(
+			client_id,
+			{
+				"pattern": script_path,
+				"total": matches.size(),
+				"formatted": formatted_count,
+				"unchanged": unchanged_count,
+				"errors": error_count,
+				"files": results,
+				"message": "%d formatted, %d unchanged, %d errors out of %d files" % [formatted_count, unchanged_count, error_count, matches.size()],
+			},
+			command_id,
+		)
+
+	# Single file path
 	if not FileAccess.file_exists(script_path):
 		return _send_error(client_id, "File not found: %s" % script_path, command_id)
 
 	if not script_path.ends_with(".gd"):
 		return _send_error(client_id, "Not a .gd file: %s" % script_path, command_id)
 
+	var result := _format_single(script_path, params)
+	if result.has("error"):
+		return _send_error(client_id, result["error"], command_id)
+
+	_send_success(
+		client_id,
+		{
+			"script_path": script_path,
+			"formatted": result.get("formatted", ""),
+			"write_back": result.get("write_back", true),
+			"changed": result.get("changed", false),
+			"message": "Script formatted." if result.get("write_back", true) else "Formatting complete (dry run).",
+		},
+		command_id,
+	)
+
+
+# ---------------------------------------------------------------------------
+# Tool: format_all_gdscript — convenience wrapper, formats every .gd file
+# ---------------------------------------------------------------------------
+func _format_all_gdscript(client_id: int, params: Dictionary, command_id: String) -> void:
+	# Delegate to format_gdscript with wildcard, merge extra params
+	var merged := params.duplicate()
+	merged["script_path"] = "*"
+	_format_gdscript(client_id, merged, command_id)
+
+
+# ---------------------------------------------------------------------------
+# Core: format a single .gd file, returns {changed, formatted, write_back} or {error}
+# ---------------------------------------------------------------------------
+func _format_single(script_path: String, params: Dictionary) -> Dictionary:
+	var use_spaces: bool = params.get("use_spaces", false)
+	var indent_size: int = params.get("indent_size", 4)
+	var reorder_code: bool = params.get("reorder_code", false)
+	var safe_mode: bool = params.get("safe_mode", true)
+	var write_back: bool = params.get("write_back", true)
+
 	# Resolve binary — check cache first, then PATH
 	var binary := _binary_path()
 	if not FileAccess.file_exists(binary):
 		var test_out: Array = []
 		if OS.execute("gdscript-formatter", ["--version"], test_out) != OK:
-			return _send_error(client_id,
-				"No binary at %s and 'gdscript-formatter' not on PATH. Use install_formatter_binary first." % binary,
-				command_id)
+			return { "error": "No binary at %s and 'gdscript-formatter' not on PATH. Use install_formatter_binary first." % binary, "script_path": script_path }
 		binary = "gdscript-formatter"
 
 	# Read source
 	var src_path := ProjectSettings.globalize_path(script_path)
 	var src_file := FileAccess.open(src_path, FileAccess.READ)
 	if not src_file:
-		return _send_error(client_id, "Cannot read: %s" % script_path, command_id)
+		return { "error": "Cannot read: %s" % script_path, "script_path": script_path }
 	var source_content := src_file.get_as_text()
 	src_file.close()
 
@@ -503,7 +593,7 @@ func _format_gdscript(client_id: int, params: Dictionary, command_id: String) ->
 	var tmp_path := OS.get_temp_dir().path_join("gdscript_fmt_%d.gd" % Time.get_ticks_msec())
 	var tmp := FileAccess.open(tmp_path, FileAccess.WRITE)
 	if not tmp:
-		return _send_error(client_id, "Cannot create temp file", command_id)
+		return { "error": "Cannot create temp file", "script_path": script_path }
 	tmp.store_string(source_content)
 	tmp.close()
 
@@ -535,26 +625,174 @@ func _format_gdscript(client_id: int, params: Dictionary, command_id: String) ->
 
 	if exit_code != OK:
 		var detail: String = cmd_out[0].strip_edges() if cmd_out.size() > 0 else "no output"
-		return _send_error(client_id,
-			"Formatter exited with code %d: %s" % [exit_code, detail],
-			command_id)
+		return { "error": "formatter exit %d: %s" % [exit_code, detail], "script_path": script_path }
 
-	# Write back or return formatted text
-	if write_back and not source_content.is_empty():
+	var changed := source_content != formatted
+
+	# Write back
+	if write_back and changed:
 		var out := FileAccess.open(script_path, FileAccess.WRITE)
 		if not out:
-			return _send_error(client_id, "Cannot write back to %s" % script_path, command_id)
+			return { "error": "Cannot write back to %s" % script_path, "script_path": script_path }
 		out.store_string(formatted)
 		out.close()
 
-		var plugin = Engine.get_meta("GodotMCPPlugin", null)
-		if plugin:
-			plugin.get_editor_interface().get_resource_filesystem().scan()
-
-	_send_success(client_id, {
+	return {
 		"script_path": script_path,
 		"formatted": formatted if not write_back else "",
 		"write_back": write_back,
-		"changed": source_content != formatted,
-		"message": "Script formatted." if write_back else "Formatting complete (dry run).",
-	}, command_id)
+		"changed": changed,
+	}
+
+
+# ---------------------------------------------------------------------------
+# Glob resolution: expand a 'res://' wildcard pattern to matching .gd paths
+# Supports * (any chars except /) and ** (any chars including /)
+# ---------------------------------------------------------------------------
+func _resolve_glob(pattern: String) -> Array[String]:
+	var results: Array[String] = []
+
+	# Extract directory prefix and file pattern
+	var pattern_stripped := pattern.trim_prefix("res://")
+
+	# Determine the base directory and the pattern parts
+	var parts := pattern_stripped.split("/")
+	var base_parts: Array[String] = []
+	var pattern_parts: Array[String] = []
+	var in_pattern := false
+
+	for part in parts:
+		if part.contains("*"):
+			in_pattern = true
+		if not in_pattern:
+			base_parts.append(part)
+		else:
+			pattern_parts.append(part)
+
+	var base_dir := "res://" + "/".join(base_parts) if base_parts.size() > 0 else "res://"
+	if not base_dir.ends_with("/"):
+		base_dir += "/"
+
+	# If no pattern parts, treat as "find all .gd recursively"
+	if pattern_parts.is_empty():
+		pattern_parts = ["**/*.gd"]
+
+	# Walk the filesystem
+	_walk_and_match(base_dir, "res://", pattern_parts, results)
+
+	return results
+
+
+func _walk_and_match(current_dir: String, res_prefix: String, pattern_parts: Array[String], results: Array[String]) -> void:
+	var abs_dir := ProjectSettings.globalize_path(current_dir)
+	var dir := DirAccess.open(abs_dir)
+	if not dir:
+		return
+
+	dir.list_dir_begin()
+	var fname := dir.get_next()
+	while fname != "":
+		if fname == "." or fname == "..":
+			fname = dir.get_next()
+			continue
+
+		var is_dir := dir.current_is_dir()
+		var rel_path := current_dir + fname
+
+		if is_dir:
+			# Skip hidden dirs and known noise
+			if fname.begins_with("."):
+				fname = dir.get_next()
+				continue
+			# Always recurse — the glob matching happens at the file level
+			_walk_and_match(rel_path + "/", res_prefix, pattern_parts, results)
+		else:
+			if not fname.ends_with(".gd"):
+				fname = dir.get_next()
+				continue
+			if _path_matches_glob(rel_path, pattern_parts):
+				results.append(rel_path)
+
+		fname = dir.get_next()
+
+	dir.list_dir_end()
+
+
+func _path_matches_glob(path: String, pattern_parts: Array[String]) -> bool:
+	var path_parts := path.trim_prefix("res://").split("/")
+
+	# Match from the end backwards (right-to-left)
+	var pi := pattern_parts.size() - 1
+	var pp := path_parts.size() - 1
+
+	while pi >= 0 and pp >= 0:
+		var pat := pattern_parts[pi]
+
+		if pat == "**":
+			# ** matches any number of path segments (including zero)
+			if pi == 0:
+				return true
+			# Try matching the remaining pattern against every possible prefix
+			var rest_patterns: Array[String] = []
+			for k in range(pi - 1, -1, -1):
+				rest_patterns.push_front(pattern_parts[k])
+			for j in range(pp, -1, -1):
+				if _part_matches(path_parts[j], pattern_parts[pi - 1]):
+					# Check if rest matches
+					var all_match := true
+					var rpi := pi - 2
+					var rpp := j - 1
+					while rpi >= 0 and rpp >= 0:
+						if pattern_parts[rpi] == "**":
+							# Nested ** — just match everything remaining
+							return true
+						if not _part_matches(path_parts[rpp], pattern_parts[rpi]):
+							all_match = false
+							break
+						rpi -= 1
+						rpp -= 1
+					if all_match and rpi < 0:
+						return true
+				# If no match found for pi-1, ** consumed everything before it
+			pp -= 1
+			continue
+
+		if not _part_matches(path_parts[pp], pat):
+			return false
+
+		pi -= 1
+		pp -= 1
+
+	return pi < 0 and pp < 0
+
+
+func _part_matches(name: String, pattern: String) -> bool:
+	if pattern == "*":
+		return true
+	if pattern == "*.gd":
+		return name.ends_with(".gd")
+	# Simple glob: * matches any sequence within a single part
+	var pi := 0
+	var ni := 0
+	var star_idx := -1
+	var match_idx := 0
+
+	while ni < name.length():
+		if pi < pattern.length() and (pattern[pi] == name[ni] or pattern[pi] == "?"):
+			pi += 1
+			ni += 1
+		elif pi < pattern.length() and pattern[pi] == "*":
+			star_idx = pi
+			match_idx = ni
+			pi += 1
+		elif star_idx != -1:
+			pi = star_idx + 1
+			match_idx += 1
+			ni = match_idx
+		else:
+			return false
+
+	while pi < pattern.length() and pattern[pi] == "*":
+		pi += 1
+
+	return pi == pattern.length()

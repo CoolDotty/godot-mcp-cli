@@ -9,7 +9,8 @@ All notable changes to this project will be documented in this file.
   (configuration warnings shown on nodes in the Scene tree dock)
 - `EditorUtils.collect_scene_tree_warning_entries()` utility for scanning the Scene Tree dock UI
 - **Formatter Tools**: `check_formatter`, `install_formatter_addon`, `install_formatter_binary`,
-  and `format_gdscript` for managing the GDQuest GDScript Formatter addon and formatting `.gd` files
+  `format_gdscript`, and `format_all_gdscript` for managing the GDQuest GDScript Formatter addon
+  and formatting `.gd` files — `format_gdscript` now supports glob patterns like `*` or `**/*.gd`
 
 ### Fixed
 - **HTTP server stays responsive when editor window loses focus**: Replaced `_process(delta)` polling

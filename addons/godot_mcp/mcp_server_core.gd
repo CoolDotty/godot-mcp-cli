@@ -14,22 +14,26 @@ extends Node
 ## can write their responses into a dict keyed by commandId.
 class ResponseBroker:
 	extends RefCounted
-	
-	var _pending: Dictionary = {}       # commandId → response dict
-	var _completed: Dictionary = {}     # commandId → response dict (after retrieval)
-	
+
+	var _pending: Dictionary = { } # commandId → response dict
+	var _completed: Dictionary = { } # commandId → response dict (after retrieval)
+
+
 	func send_response(client_id: int, response: Dictionary) -> int:
 		var cmd_id: String = response.get("commandId", "")
 		if cmd_id:
 			_pending[cmd_id] = response.duplicate(true)
 		return OK
-	
+
+
 	func send_event(client_id: int, event: Dictionary) -> int:
 		return OK
-	
+
+
 	func broadcast_event(event: Dictionary) -> void:
 		pass
-	
+
+
 	## Wait up to `timeout` seconds for a response with the given commandId.
 	func wait_for_response(cmd_id: String, timeout: float = 10.0) -> Variant:
 		var elapsed: float = 0.0
@@ -42,7 +46,8 @@ class ResponseBroker:
 			OS.delay_msec(10)
 			elapsed += 0.01
 		return null
-	
+
+
 	## Non-blocking check for a pending response.
 	func poll_response(cmd_id: String) -> Variant:
 		if _pending.has(cmd_id):
@@ -58,18 +63,18 @@ class ResponseBroker:
 # ---------------------------------------------------------------------------
 class ToolDefinition:
 	extends RefCounted
-	
+
 	var name: String
 	var description: String
-	var input_schema: Dictionary   # JSON Schema
-	var command_type: String       # Maps to command_handler command type
-	
+	var input_schema: Dictionary # JSON Schema
+	var command_type: String # Maps to command_handler command type
+
+
 	func _init(p_name: String, p_description: String, p_schema: Dictionary, p_command: String):
 		name = p_name
 		description = p_description
 		input_schema = p_schema
 		command_type = p_command
-
 
 # ---------------------------------------------------------------------------
 # Signals
@@ -80,15 +85,14 @@ signal jsonrpc_response(response: Dictionary)
 ## Emitted when an SSE notification should be broadcast
 signal sse_notification(notification: Dictionary)
 
-
 # ---------------------------------------------------------------------------
 # State
 # ---------------------------------------------------------------------------
 var is_initialized: bool = false
-var client_capabilities: Dictionary = {}
+var client_capabilities: Dictionary = { }
 var server_capabilities: Dictionary = {
-	"tools": {},
-	"resources": {},
+	"tools": { },
+	"resources": { },
 }
 
 # Tracks which SSE client performed the initialize (for per-session reset).
@@ -102,8 +106,8 @@ var _initialized_client_id: int = -1
 var _command_handler = null
 var _response_broker: ResponseBroker = null
 var _tools: Array[ToolDefinition] = []
-var _resources: Array = []  # resource definitions (for future use)
-var _tool_map: Dictionary = {}   # tool_name → ToolDefinition
+var _resources: Array = [] # resource definitions (for future use)
+var _tool_map: Dictionary = { } # tool_name → ToolDefinition
 
 
 # ---------------------------------------------------------------------------
@@ -142,15 +146,15 @@ func _on_sse_client_disconnected(client_id: int) -> void:
 	if client_id == _initialized_client_id:
 		is_initialized = false
 		_initialized_client_id = -1
-		client_capabilities = {}
+		client_capabilities = { }
 		return
-	
+
 	# Fallback: if the initialized client is gone but wasn't tracked
 	# (e.g. from an older session), reset when no SSE clients remain.
 	if sse_client_count() == 0:
 		is_initialized = false
 		_initialized_client_id = -1
-		client_capabilities = {}
+		client_capabilities = { }
 
 
 func sse_client_count() -> int:
@@ -172,7 +176,7 @@ func _get_active_sse_client_id() -> int:
 			if child is MCPSse:
 				var ids: Array = child.get_client_ids()
 				if not ids.is_empty():
-					return ids[-1]  # Most recently registered
+					return ids[-1] # Most recently registered
 	return -1
 
 
@@ -185,21 +189,21 @@ func _is_sse_client_connected(client_id: int) -> bool:
 				return child.is_client_connected(client_id)
 	return false
 
-
 # ---------------------------------------------------------------------------
 # MCP Method Handlers
 # ---------------------------------------------------------------------------
+
 
 ## Handle an incoming MCP JSON-RPC request. Returns the response dict,
 ## or null for notifications (no response expected).
 func handle_mcp_request(request: Dictionary) -> Variant:
 	var method: String = request.get("method", "")
-	var params: Dictionary = request.get("params", {})
+	var params: Dictionary = request.get("params", { })
 	var req_id = request.get("id", null)
-	
+
 	# Notifications don't have an id — we don't send a response
 	var is_notification := req_id == null
-	
+
 	match method:
 		"initialize":
 			return _handle_initialize(params, req_id)
@@ -207,7 +211,7 @@ func handle_mcp_request(request: Dictionary) -> Variant:
 			_handle_initialized_notification(params)
 			if is_notification:
 				return null
-			return MCPTypes.make_success_response(req_id, {})
+			return MCPTypes.make_success_response(req_id, { })
 		"tools/list":
 			return _handle_tools_list(params, req_id)
 		"tools/call":
@@ -217,14 +221,14 @@ func handle_mcp_request(request: Dictionary) -> Variant:
 		"resources/read":
 			return _handle_resources_read(params, req_id)
 		"ping":
-			return MCPTypes.make_success_response(req_id, {})
+			return MCPTypes.make_success_response(req_id, { })
 		_:
 			if is_notification:
-				return null  # Unknown notifications are ignored (MCP spec)
+				return null # Unknown notifications are ignored (MCP spec)
 			return MCPTypes.make_error_response(
 				req_id,
 				MCPTypes.ErrorCode.METHOD_NOT_FOUND,
-				"Unknown method: %s" % method
+				"Unknown method: %s" % method,
 			)
 
 
@@ -237,33 +241,39 @@ func _handle_initialize(params: Dictionary, req_id: Variant) -> Dictionary:
 		if not _is_sse_client_connected(_initialized_client_id):
 			is_initialized = false
 			_initialized_client_id = -1
-			client_capabilities = {}
-	
+			client_capabilities = { }
+
 	if is_initialized:
 		# Already initialized — return success (idempotent) instead of
 		# blocking other clients. Multi-client scenarios are common when
 		# MCP clients reconnect without tearing down old SSE sessions.
-		return MCPTypes.make_success_response(req_id, {
+		return MCPTypes.make_success_response(
+			req_id,
+			{
+				"protocolVersion": MCPTypes.PROTOCOL_VERSION,
+				"capabilities": server_capabilities,
+				"serverInfo": {
+					"name": "godot-mcp",
+					"version": "1.1.0",
+				},
+			},
+		)
+
+	client_capabilities = params.get("capabilities", { })
+	is_initialized = true
+	_initialized_client_id = _get_active_sse_client_id()
+
+	return MCPTypes.make_success_response(
+		req_id,
+		{
 			"protocolVersion": MCPTypes.PROTOCOL_VERSION,
 			"capabilities": server_capabilities,
 			"serverInfo": {
 				"name": "godot-mcp",
 				"version": "1.1.0",
 			},
-		})
-	
-	client_capabilities = params.get("capabilities", {})
-	is_initialized = true
-	_initialized_client_id = _get_active_sse_client_id()
-	
-	return MCPTypes.make_success_response(req_id, {
-		"protocolVersion": MCPTypes.PROTOCOL_VERSION,
-		"capabilities": server_capabilities,
-		"serverInfo": {
-			"name": "godot-mcp",
-			"version": "1.1.0",
 		},
-	})
+	)
 
 
 func _handle_initialized_notification(params: Dictionary) -> void:
@@ -277,30 +287,35 @@ func _handle_initialized_notification(params: Dictionary) -> void:
 func _handle_tools_list(params: Dictionary, req_id: Variant) -> Dictionary:
 	var tools_list: Array[Dictionary] = []
 	for tool in _tools:
-		tools_list.append({
-			"name": tool.name,
-			"description": tool.description,
-			"inputSchema": tool.input_schema,
-		})
-	
-	return MCPTypes.make_success_response(req_id, {
-		"tools": tools_list,
-	})
+		tools_list.append(
+			{
+				"name": tool.name,
+				"description": tool.description,
+				"inputSchema": tool.input_schema,
+			},
+		)
+
+	return MCPTypes.make_success_response(
+		req_id,
+		{
+			"tools": tools_list,
+		},
+	)
 
 
 func _handle_tools_call(params: Dictionary, req_id: Variant) -> Variant:
 	var name: String = params.get("name", "")
-	var arguments: Dictionary = params.get("arguments", {})
-	
+	var arguments: Dictionary = params.get("arguments", { })
+
 	if not _tool_map.has(name):
 		return MCPTypes.make_error_response(
 			req_id,
 			MCPTypes.ErrorCode.TOOL_NOT_FOUND,
-			"Tool not found: %s" % name
+			"Tool not found: %s" % name,
 		)
-	
+
 	var tool_def: ToolDefinition = _tool_map[name]
-	
+
 	# Build a command in the format expected by command processors
 	var command_id := "mcp_%s_%d" % [name, Time.get_ticks_msec()]
 	var command := {
@@ -308,47 +323,50 @@ func _handle_tools_call(params: Dictionary, req_id: Variant) -> Variant:
 		"params": arguments,
 		"commandId": command_id,
 	}
-	
+
 	# Route to command handler
 	if not _command_handler:
 		return MCPTypes.make_error_response(
 			req_id,
 			MCPTypes.ErrorCode.INTERNAL_ERROR,
-			"Command handler not available"
+			"Command handler not available",
 		)
-	
+
 	# Call the command handler
 	var handled: bool = false
 	for processor in _command_handler._command_processors:
 		if _call_processor_blocking(processor, command_id, command):
 			handled = true
 			break
-	
+
 	if not handled:
 		return MCPTypes.make_error_response(
 			req_id,
 			MCPTypes.ErrorCode.TOOL_EXECUTION_ERROR,
-			"No processor handled tool: %s" % name
+			"No processor handled tool: %s" % name,
 		)
-	
+
 	# Wait for the response via the broker
 	var response = _response_broker.wait_for_response(command_id, 30.0)
 	if response == null:
 		return MCPTypes.make_error_response(
 			req_id,
 			MCPTypes.ErrorCode.TOOL_EXECUTION_ERROR,
-			"Tool execution timed out: %s" % name
+			"Tool execution timed out: %s" % name,
 		)
-	
+
 	if response.get("status") == "success":
-		return MCPTypes.make_success_response(req_id, {
-			"content": [
-				{
-					"type": "text",
-					"text": JSON.stringify(response.get("result", {})),
-				}
-			],
-		})
+		return MCPTypes.make_success_response(
+			req_id,
+			{
+				"content": [
+					{
+						"type": "text",
+						"text": JSON.stringify(response.get("result", { })),
+					},
+				],
+			},
+		)
 	else:
 		return MCPTypes.make_error_response(
 			req_id,
@@ -364,26 +382,29 @@ func _handle_resources_list(params: Dictionary, req_id: Variant) -> Dictionary:
 	var resources_list: Array[Dictionary] = []
 	for res in _resources:
 		resources_list.append(res)
-	
-	return MCPTypes.make_success_response(req_id, {
-		"resources": resources_list,
-	})
+
+	return MCPTypes.make_success_response(
+		req_id,
+		{
+			"resources": resources_list,
+		},
+	)
 
 
 func _handle_resources_read(params: Dictionary, req_id: Variant) -> Variant:
 	var uri: String = params.get("uri", "")
-	
+
 	# For now, resources are read-only informational
 	return MCPTypes.make_error_response(
 		req_id,
 		MCPTypes.ErrorCode.RESOURCE_NOT_FOUND,
-		"Resource not found: %s" % uri
+		"Resource not found: %s" % uri,
 	)
-
 
 # ---------------------------------------------------------------------------
 # Tool Registration
 # ---------------------------------------------------------------------------
+
 
 ## Register a tool definition. Used by subclasses to add tools.
 func register_tool(tool: ToolDefinition) -> void:
@@ -401,249 +422,327 @@ func register_resource(resource: Dictionary) -> void:
 # ---------------------------------------------------------------------------
 func _register_builtin_tools() -> void:
 	# --- Node Tools ---
-	register_tool(ToolDefinition.new(
-		"create_node", "Create a new node in the scene tree.",
-		{
-			"type": "object",
-			"properties": {
-				"parent_path": {"type": "string", "description": "Path to the parent node (default: root)"},
-				"node_type": {"type": "string", "description": "Node class name (e.g. Node2D, Sprite2D)"},
-				"node_name": {"type": "string", "description": "Name for the new node"},
+	register_tool(
+		ToolDefinition.new(
+			"create_node",
+			"Create a new node in the scene tree.",
+			{
+				"type": "object",
+				"properties": {
+					"parent_path": { "type": "string", "description": "Path to the parent node (default: root)" },
+					"node_type": { "type": "string", "description": "Node class name (e.g. Node2D, Sprite2D)" },
+					"node_name": { "type": "string", "description": "Name for the new node" },
+				},
+				"required": ["node_type", "node_name"],
 			},
-			"required": ["node_type", "node_name"],
-		},
-		"create_node"
-	))
-	
-	register_tool(ToolDefinition.new(
-		"delete_node", "Delete a node from the scene tree.",
-		{
-			"type": "object",
-			"properties": {
-				"node_path": {"type": "string", "description": "Path to the node to delete"},
+			"create_node",
+		),
+	)
+
+	register_tool(
+		ToolDefinition.new(
+			"delete_node",
+			"Delete a node from the scene tree.",
+			{
+				"type": "object",
+				"properties": {
+					"node_path": { "type": "string", "description": "Path to the node to delete" },
+				},
+				"required": ["node_path"],
 			},
-			"required": ["node_path"],
-		},
-		"delete_node"
-	))
-	
-	register_tool(ToolDefinition.new(
-		"update_node_property", "Update a property on a node.",
-		{
-			"type": "object",
-			"properties": {
-				"node_path": {"type": "string", "description": "Path to the node"},
-				"property": {"type": "string", "description": "Name of the property to update"},
-				"value": {"description": "New value for the property"},
+			"delete_node",
+		),
+	)
+
+	register_tool(
+		ToolDefinition.new(
+			"update_node_property",
+			"Update a property on a node.",
+			{
+				"type": "object",
+				"properties": {
+					"node_path": { "type": "string", "description": "Path to the node" },
+					"property": { "type": "string", "description": "Name of the property to update" },
+					"value": { "description": "New value for the property" },
+				},
+				"required": ["node_path", "property", "value"],
 			},
-			"required": ["node_path", "property", "value"],
-		},
-		"update_node_property"
-	))
-	
-	register_tool(ToolDefinition.new(
-		"get_node_properties", "Get all properties of a node.",
-		{
-			"type": "object",
-			"properties": {
-				"node_path": {"type": "string", "description": "Path to the node"},
+			"update_node_property",
+		),
+	)
+
+	register_tool(
+		ToolDefinition.new(
+			"get_node_properties",
+			"Get all properties of a node.",
+			{
+				"type": "object",
+				"properties": {
+					"node_path": { "type": "string", "description": "Path to the node" },
+				},
+				"required": ["node_path"],
 			},
-			"required": ["node_path"],
-		},
-		"get_node_properties"
-	))
-	
-	register_tool(ToolDefinition.new(
-		"list_nodes", "List all nodes in the current scene.",
-		{
-			"type": "object",
-			"properties": {
-				"parent_path": {"type": "string", "description": "Optional parent path to list children of"},
+			"get_node_properties",
+		),
+	)
+
+	register_tool(
+		ToolDefinition.new(
+			"list_nodes",
+			"List all nodes in the current scene.",
+			{
+				"type": "object",
+				"properties": {
+					"parent_path": { "type": "string", "description": "Optional parent path to list children of" },
+				},
 			},
-		},
-		"list_nodes"
-	))
-	
+			"list_nodes",
+		),
+	)
+
 	# --- Script Tools ---
-	register_tool(ToolDefinition.new(
-		"execute_editor_script", "Run a GDScript code snippet in the editor context.",
-		{
-			"type": "object",
-			"properties": {
-				"code": {"type": "string", "description": "GDScript code to execute"},
+	register_tool(
+		ToolDefinition.new(
+			"execute_editor_script",
+			"Run a GDScript code snippet in the editor context.",
+			{
+				"type": "object",
+				"properties": {
+					"code": { "type": "string", "description": "GDScript code to execute" },
+				},
+				"required": ["code"],
 			},
-			"required": ["code"],
-		},
-		"execute_editor_script"
-	))
-	
-	register_tool(ToolDefinition.new(
-		"get_script", "Get the source code of a script attached to a node or resource.",
-		{
-			"type": "object",
-			"properties": {
-				"script_path": {"type": "string", "description": "Path to the script file"},
-				"node_path": {"type": "string", "description": "Path to the node with a script attached"},
+			"execute_editor_script",
+		),
+	)
+
+	register_tool(
+		ToolDefinition.new(
+			"get_script",
+			"Get the source code of a script attached to a node or resource.",
+			{
+				"type": "object",
+				"properties": {
+					"script_path": { "type": "string", "description": "Path to the script file" },
+					"node_path": { "type": "string", "description": "Path to the node with a script attached" },
+				},
+				"oneOf": [
+					{ "required": ["script_path"] },
+					{ "required": ["node_path"] },
+				],
 			},
-			"oneOf": [
-				{"required": ["script_path"]},
-				{"required": ["node_path"]}
-			],
-		},
-		"get_script"
-	))
-	
+			"get_script",
+		),
+	)
+
 	# --- Scene Tools ---
-	register_tool(ToolDefinition.new(
-		"save_scene", "Save the current scene.",
-		{
-			"type": "object",
-			"properties": {
-				"path": {"type": "string", "description": "Optional path to save to"},
+	register_tool(
+		ToolDefinition.new(
+			"save_scene",
+			"Save the current scene.",
+			{
+				"type": "object",
+				"properties": {
+					"path": { "type": "string", "description": "Optional path to save to" },
+				},
 			},
-		},
-		"save_scene"
-	))
-	
-	register_tool(ToolDefinition.new(
-		"open_scene", "Open a scene file in the editor.",
-		{
-			"type": "object",
-			"properties": {
-				"path": {"type": "string", "description": "Path to the .tscn file"},
+			"save_scene",
+		),
+	)
+
+	register_tool(
+		ToolDefinition.new(
+			"open_scene",
+			"Open a scene file in the editor.",
+			{
+				"type": "object",
+				"properties": {
+					"path": { "type": "string", "description": "Path to the .tscn file" },
+				},
+				"required": ["path"],
 			},
-			"required": ["path"],
-		},
-		"open_scene"
-	))
-	
-	register_tool(ToolDefinition.new(
-		"get_scene_structure", "Get the full scene tree structure with properties.",
-		{
-			"type": "object",
-			"properties": {
-				"path": {"type": "string", "description": "Path to the .tscn file"},
+			"open_scene",
+		),
+	)
+
+	register_tool(
+		ToolDefinition.new(
+			"get_scene_structure",
+			"Get the full scene tree structure with properties.",
+			{
+				"type": "object",
+				"properties": {
+					"path": { "type": "string", "description": "Path to the .tscn file" },
+				},
+				"required": ["path"],
 			},
-			"required": ["path"],
-		},
-		"get_scene_structure"
-	))
-	
+			"get_scene_structure",
+		),
+	)
+
 	# --- Project Tools ---
-	register_tool(ToolDefinition.new(
-		"get_project_info", "Get project information.",
-		{
-			"type": "object",
-			"properties": {},
-		},
-		"get_project_info"
-	))
-	
-	register_tool(ToolDefinition.new(
-		"get_project_settings", "Get project settings.",
-		{
-			"type": "object",
-			"properties": {},
-		},
-		"get_project_settings"
-	))
-	
+	register_tool(
+		ToolDefinition.new(
+			"get_project_info",
+			"Get project information.",
+			{
+				"type": "object",
+				"properties": { },
+			},
+			"get_project_info",
+		),
+	)
+
+	register_tool(
+		ToolDefinition.new(
+			"get_project_settings",
+			"Get project settings.",
+			{
+				"type": "object",
+				"properties": { },
+			},
+			"get_project_settings",
+		),
+	)
+
 	# --- Editor Tools ---
-	register_tool(ToolDefinition.new(
-		"get_editor_state", "Get current editor state information.",
-		{
-			"type": "object",
-			"properties": {},
-		},
-		"get_editor_state"
-	))
-	
-	register_tool(ToolDefinition.new(
-		"get_node_warnings", "Inspect the current scene for node configuration warnings.",
-		{
-			"type": "object",
-			"properties": {
-				"debug": {"type": "boolean", "description": "Include traversal debug stats"},
+	register_tool(
+		ToolDefinition.new(
+			"get_editor_state",
+			"Get current editor state information.",
+			{
+				"type": "object",
+				"properties": { },
 			},
-		},
-		"get_node_warnings"
-	))
-	
+			"get_editor_state",
+		),
+	)
+
+	register_tool(
+		ToolDefinition.new(
+			"get_node_warnings",
+			"Inspect the current scene for node configuration warnings.",
+			{
+				"type": "object",
+				"properties": {
+					"debug": { "type": "boolean", "description": "Include traversal debug stats" },
+				},
+			},
+			"get_node_warnings",
+		),
+	)
+
 	# --- Enhanced Scene Tools ---
-	register_tool(ToolDefinition.new(
-		"get_editor_scene_structure", "Get detailed editor scene tree with properties and scripts.",
-		{
-			"type": "object",
-			"properties": {
-				"include_properties": {"type": "boolean", "description": "Include node properties"},
-				"include_scripts": {"type": "boolean", "description": "Include script info"},
-				"max_depth": {"type": "number", "description": "Maximum depth to traverse"},
+	register_tool(
+		ToolDefinition.new(
+			"get_editor_scene_structure",
+			"Get detailed editor scene tree with properties and scripts.",
+			{
+				"type": "object",
+				"properties": {
+					"include_properties": { "type": "boolean", "description": "Include node properties" },
+					"include_scripts": { "type": "boolean", "description": "Include script info" },
+					"max_depth": { "type": "number", "description": "Maximum depth to traverse" },
+				},
 			},
-		},
-		"get_editor_scene_structure"
-	))
-	
+			"get_editor_scene_structure",
+		),
+	)
+
 	# --- GDScript Formatter Tools ---
-	register_tool(ToolDefinition.new(
-		"check_formatter", "Check if the GDQuest GDScript Formatter addon and binary are installed.",
-		{
-			"type": "object",
-			"properties": {},
-		},
-		"check_formatter"
-	))
-
-	register_tool(ToolDefinition.new(
-		"install_formatter_addon", "Download the GDQuest GDScript Formatter addon files into the project. Requires enabling the plugin in Project → Project Settings → Plugins afterwards.",
-		{
-			"type": "object",
-			"properties": {},
-		},
-		"install_formatter_addon"
-	))
-
-	register_tool(ToolDefinition.new(
-		"install_formatter_binary", "Download and install the platform-specific GDScript Formatter binary from GitHub releases. Stores it in the editor cache directory.",
-		{
-			"type": "object",
-			"properties": {},
-		},
-		"install_formatter_binary"
-	))
-
-	register_tool(ToolDefinition.new(
-		"format_gdscript", "Format a GDScript file using the installed formatter binary. Supports indent style, safe mode, code reordering, and optional dry-run.",
-		{
-			"type": "object",
-			"properties": {
-				"script_path": {"type": "string", "description": "Path to the .gd file (res:// or relative)"},
-				"use_spaces": {"type": "boolean", "description": "Use spaces instead of tabs"},
-				"indent_size": {"type": "number", "description": "Indent size when using spaces (default: 4)"},
-				"reorder_code": {"type": "boolean", "description": "Reorder code to follow the GDScript style guide"},
-				"safe_mode": {"type": "boolean", "description": "Skip formatting if it would change code meaning (default: true)"},
-				"write_back": {"type": "boolean", "description": "Write formatted code back to the file (default: true). Set to false for a dry run."},
+	register_tool(
+		ToolDefinition.new(
+			"check_formatter",
+			"Check if the GDQuest GDScript Formatter addon and binary are installed.",
+			{
+				"type": "object",
+				"properties": { },
 			},
-			"required": ["script_path"],
-		},
-		"format_gdscript"
-	))
+			"check_formatter",
+		),
+	)
+
+	register_tool(
+		ToolDefinition.new(
+			"install_formatter_addon",
+			"Download the GDQuest GDScript Formatter addon files into the project. Requires enabling the plugin in Project → Project Settings → Plugins afterwards.",
+			{
+				"type": "object",
+				"properties": { },
+			},
+			"install_formatter_addon",
+		),
+	)
+
+	register_tool(
+		ToolDefinition.new(
+			"install_formatter_binary",
+			"Download and install the platform-specific GDScript Formatter binary from GitHub releases. Stores it in the editor cache directory.",
+			{
+				"type": "object",
+				"properties": { },
+			},
+			"install_formatter_binary",
+		),
+	)
+
+	register_tool(
+		ToolDefinition.new(
+			"format_gdscript",
+			"Format GDScript file(s) using the installed formatter. Accepts a single file path or a glob pattern (e.g. *, **/*.gd, addons/*.gd). Supports indent style, safe mode, code reordering, and optional dry-run.",
+			{
+				"type": "object",
+				"properties": {
+					"script_path": { "type": "string", "description": "Path to a .gd file or glob pattern (res:// or relative). Use * to format all .gd files." },
+					"use_spaces": { "type": "boolean", "description": "Use spaces instead of tabs" },
+					"indent_size": { "type": "number", "description": "Indent size when using spaces (default: 4)" },
+					"reorder_code": { "type": "boolean", "description": "Reorder code to follow the GDScript style guide" },
+					"safe_mode": { "type": "boolean", "description": "Skip formatting if it would change code meaning (default: true)" },
+					"write_back": { "type": "boolean", "description": "Write formatted code back to the file (default: true). Set to false for a dry run." },
+				},
+				"required": ["script_path"],
+			},
+			"format_gdscript",
+		),
+	)
+
+	register_tool(
+		ToolDefinition.new(
+			"format_all_gdscript",
+			"Format every .gd file in the project. Convenience wrapper that calls format_gdscript with a '*' pattern.",
+			{
+				"type": "object",
+				"properties": {
+					"use_spaces": { "type": "boolean", "description": "Use spaces instead of tabs" },
+					"indent_size": { "type": "number", "description": "Indent size when using spaces (default: 4)" },
+					"reorder_code": { "type": "boolean", "description": "Reorder code to follow the GDScript style guide" },
+					"safe_mode": { "type": "boolean", "description": "Skip formatting if it would change code meaning (default: true)" },
+					"write_back": { "type": "boolean", "description": "Write formatted code back to the file (default: true). Set to false for a dry run." },
+				},
+			},
+			"format_all_gdscript",
+		),
+	)
 
 	# --- Debugger Tools ---
-	register_tool(ToolDefinition.new(
-		"get_debug_output", "Get recent debug output.",
-		{
-			"type": "object",
-			"properties": {
-				"max_lines": {"type": "number", "description": "Maximum number of lines to return (default 100)"},
+	register_tool(
+		ToolDefinition.new(
+			"get_debug_output",
+			"Get recent debug output.",
+			{
+				"type": "object",
+				"properties": {
+					"max_lines": { "type": "number", "description": "Maximum number of lines to return (default 100)" },
+				},
 			},
-		},
-		"get_debug_output"
-	))
-
+			"get_debug_output",
+		),
+	)
 
 # ---------------------------------------------------------------------------
 # Helpers
 # ---------------------------------------------------------------------------
+
 
 ## Call a processor with the broker set, returning true if handled.
 ## Processors return `bool` immediately — actual responses arrive later
@@ -651,25 +750,28 @@ func _register_builtin_tools() -> void:
 func _call_processor_blocking(processor, command_id: String, command: Dictionary) -> bool:
 	if not processor or not processor.has_method("process_command"):
 		return false
-	
+
 	# Temporarily set broker on processor
 	var old_server = null
 	if "_websocket_server" in processor:
 		old_server = processor._websocket_server
 		processor._websocket_server = _response_broker
-	
+
 	var handled := false
 	if processor.has_method("process_command"):
 		# Call synchronously — processor returns bool immediately
 		# The actual response is written to the broker via _send_success/_send_error
 		handled = processor.process_command(
-			0, command.get("type"), command.get("params", {}), command.get("commandId", "")
+			0,
+			command.get("type"),
+			command.get("params", { }),
+			command.get("commandId", ""),
 		)
-	
+
 	# Restore old server reference
 	if old_server != null:
 		processor._websocket_server = old_server
-	
+
 	return handled
 
 
