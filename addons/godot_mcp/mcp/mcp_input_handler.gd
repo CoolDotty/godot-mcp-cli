@@ -13,6 +13,10 @@ func _ready() -> void:
 	if Engine.is_editor_hint():
 		return
 
+	# EngineDebugger is editor-only — not available in production builds
+	if not ClassDB.class_exists("EngineDebugger"):
+		return
+
 	if not EngineDebugger.is_active():
 		print("[MCP Input Handler] Debugger not active, input simulation unavailable")
 		return
@@ -628,5 +632,7 @@ func _string_to_keycode(key_string: String) -> int:
 
 
 func _send_result(request_id: int, result: Dictionary) -> void:
+	if not ClassDB.class_exists("EngineDebugger"):
+		return
 	result["request_id"] = request_id
 	EngineDebugger.send_message("%s:result" % CAPTURE_NAME, [result])
